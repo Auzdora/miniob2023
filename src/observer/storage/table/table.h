@@ -53,6 +53,11 @@ public:
             const char *base_dir, 
             int attribute_count, 
             const AttrInfoSqlNode attributes[]);
+  /**
+   * 删除一个表
+   * 
+   */
+  RC drop(const char *table_path, const char *data_path, const std::vector<std::string> &index_paths, const char *name, const char *base_dir);
 
   /**
    * 打开一个表

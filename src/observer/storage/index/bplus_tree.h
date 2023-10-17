@@ -22,6 +22,8 @@ See the Mulan PSL v2 for more details. */
 #include <functional>
 #include <memory>
 
+#include "common/lang/string.h"
+#include "sql/parser/value.h"
 #include "storage/record/record_manager.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/trx/latch_memo.h"
@@ -69,6 +71,9 @@ public:
       case INTS: {
         return common::compare_int((void *)v1, (void *)v2);
       } break;
+      case DATES: {
+        return common::compare_int((void *)v1, (void *)v2);
+      }
       case FLOATS: {
         return common::compare_float((void *)v1, (void *)v2);
       }
@@ -145,6 +150,9 @@ public:
       case INTS: {
         return std::to_string(*(int *)v);
       } break;
+      case DATES: {
+        return common::date_to_str(*(int *)v);
+      }
       case FLOATS: {
         return std::to_string(*(float *)v);
       }

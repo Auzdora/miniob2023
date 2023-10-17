@@ -126,6 +126,49 @@ RC Table::create(int32_t table_id,
   return rc;
 }
 
+RC Table::drop(const char *table_path, const char *data_path, const std::vector<std::string> &index_paths, const char *name, const char *base_dir) {
+  RC rc = sync();
+
+  if(rc != RC::SUCCESS) return rc;
+
+  if (common::is_blank(name)) {
+    LOG_WARN("Name cannot be empty");
+    return RC::INVALID_ARGUMENT;
+  }
+  LOG_INFO("Begin to drop table %s:%s", base_dir, name);
+
+  // Remove the table meta file
+  if (remove(table_path) != 0) {
+    LOG_ERROR("Failed to remove table file. filename=%s, errmsg=%d:%s", table_path, errno, strerror(errno));
+    return RC::IOERR_CLOSE;
+  }
+
+  // remove 
+  if (remove(data_path) != 0) {
+    LOG_ERROR("Failed to remove table data file. filename=%s, errmsg=%d:%s", data_path, errno, strerror(errno));
+    return RC::IOERR_CLOSE;
+  }
+
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; i++) {
+    ((BplusTreeIndex *)indexes_[0])->close();
+    if (remove(index_paths[i].c_str()) != 0) {
+      LOG_ERROR("Failed to remove table index file. filename=%s, errmsg=%d:%s", index_paths[i].c_str(), errno, strerror(errno));
+      return RC::IOERR_CLOSE;
+    }
+  }
+
+  BufferPoolManager &bpm = BufferPoolManager::instance();
+  rc = bpm.close_file(data_path);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to close disk buffer pool of data file. file name=%s", data_path);
+    return rc;
+  }
+
+  LOG_INFO("Successfully deleted table %s:%s", base_dir, name);
+  return RC::SUCCESS;
+}
+
 RC Table::open(const char *meta_file, const char *base_dir)
 {
   // 加载元数据文件

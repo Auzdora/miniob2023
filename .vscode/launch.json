@@ -4,26 +4,32 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "type": "cppdbg",
-            "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
-            "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
-            "cwd": "${workspaceFolder}/${defaultBuildTask}/",
-            "externalConsole":true,
-            "internalConsoleOptions": "openOnSessionStart",
-            "osx": {
-                "MIMode": "lldb"
-            }
-        },
+        // {
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "name": "Debug",
+        //     "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
+        //     "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
+        //     "cwd": "${workspaceFolder}/${defaultBuildTask}/",
+        //     "externalConsole":true,
+        //     "internalConsoleOptions": "openOnSessionStart",
+        //     "osx": {
+        //         "MIMode": "lldb"
+        //     }
+        // },
         {
             "type": "lldb",
             "request": "launch",
             "name": "LLDB",
             "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
             "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
-            "cwd": "${workspaceFolder}/${defaultBuildTask}/"
+            "cwd": "${workspaceFolder}/${defaultBuildTask}/",
+            "sourceMap": {
+                "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.y": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.y",
+                "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.cpp",
+                "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.l": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.l;",
+                "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.cpp",
+              },
         }
     ]
 }

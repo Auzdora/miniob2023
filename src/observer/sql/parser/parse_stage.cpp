@@ -36,8 +36,8 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   ParsedSqlResult parsed_sql_result;
 
-  parse(sql.c_str(), &parsed_sql_result);
-  if(rc == RC::SQL_SYNTAX){
+  rc = parse(sql.c_str(), &parsed_sql_result);
+  if (rc == RC::SQL_SYNTAX) {
     sql_result->set_return_code(RC::INTERNAL);
     sql_result->set_state_string("");
     return rc;
