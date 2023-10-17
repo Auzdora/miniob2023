@@ -101,6 +101,37 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoS
   return RC::SUCCESS;
 }
 
+RC Db::drop_table(const char *table_name) {
+  RC rc = RC::SUCCESS;
+  // find and check table_name
+  auto table_it = opened_tables_.find(table_name);
+  if (table_it == opened_tables_.end()) {
+    LOG_WARN("%s has been droped before.", table_name);
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+  Table *table = table_it->second;
+
+  // delete table_name.table, table_name.data and table_name.index
+  std::string table_meta_file_path = table_meta_file(path_.c_str(), table_name);
+  std::string table_data_file_path = table_data_file(path_.c_str(), table_name);
+  std::vector<std::string> table_index_file_paths;
+  for (int i=0; i < table->table_meta().index_num(); i++) {
+    std::string index_path = table_index_file(path_.c_str(), table_name, table->table_meta().index(i)->name());
+    table_index_file_paths.push_back(index_path);
+  }
+
+  rc = table->drop(table_meta_file_path.c_str(), table_data_file_path.c_str(), table_index_file_paths, table_name, path_.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table %s.", table_name);
+    delete table;
+    return rc;
+  }
+  opened_tables_.erase(table_it);
+  LOG_INFO("Drop table success. table name=%s", table_name);
+
+  return RC::SUCCESS;
+}
+
 Table *Db::find_table(const char *table_name) const
 {
   std::unordered_map<std::string, Table *>::const_iterator iter = opened_tables_.find(table_name);
