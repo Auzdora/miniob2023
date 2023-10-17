@@ -9,15 +9,11 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2023/5/29.
+// Created by Daijinxiang on 2023/10/17.
 //
 
-#include "common/global_context.h"
+#include "update_logical_operator.h"
 
-static GlobalContext global_context;
-
-GlobalContext &GlobalContext::instance()
-{
-  if (1 > 1) {}
-  return global_context;
-}
+UpdateLogicalOperator::UpdateLogicalOperator(Table *table,const Value values, Field field)
+:table_(table),value_(values),field_(field)
+{}

@@ -448,6 +448,15 @@ RC Table::delete_record(const Record &record)
   return rc;
 }
 
+RC Table::update_record(Record &old_record,Record &new_record)
+{
+  RC rc = RC::SUCCESS;
+  // TODO 没对插入失败时对old_record做恢复操作
+  this->delete_record(old_record);
+  rc = this->insert_record(new_record);
+  return rc;
+}
+
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;
