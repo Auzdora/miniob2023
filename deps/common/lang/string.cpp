@@ -284,4 +284,29 @@ std::string double_to_str(double v)
 
   return std::string(buf, len);
 }
+
+/**
+ * date to string
+ * @param v
+ * @return
+ */
+std::string date_to_str(int v)
+{
+  std::string output;
+  std::string year = std::to_string(v/10000);
+  output =  year + "-";
+  std::string month = std::to_string(v%10000/100);
+  if (v%10000/100 < 10) {
+    output += "0" + month + "-";
+  } else {
+    output += month + "-";
+  }
+  std::string day = std::to_string(v%10000%100);
+  if (v%10000%100 < 10) {
+    output += "0" + day;
+  } else {
+    output += day;
+  }
+  return output;
+}
 }  // namespace common
