@@ -127,23 +127,15 @@ RC Table::create(int32_t table_id,
 }
 
 RC Table::drop(const char *table_path, const char *data_path, const std::vector<std::string> &index_paths, const char *name, const char *base_dir) {
+  RC rc = sync();
+
+  if(rc != RC::SUCCESS) return rc;
+
   if (common::is_blank(name)) {
     LOG_WARN("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
   LOG_INFO("Begin to drop table %s:%s", base_dir, name);
-
-  int fd = ::open(table_path, O_RDONLY | O_CLOEXEC);
-  if (fd < 0) {
-    if (ENOENT == errno) {
-      LOG_ERROR("Table file does not exist. %s, ENOENT, %s", table_path, strerror(errno));
-      return RC::SCHEMA_TABLE_NOT_EXIST;
-    }
-    LOG_ERROR("Checking table file failed. filename=%s, errmsg=%d:%s", table_path, errno, strerror(errno));
-    return RC::IOERR_OPEN;
-  }
-
-  close(fd);
 
   // Remove the table meta file
   if (remove(table_path) != 0) {
@@ -151,42 +143,23 @@ RC Table::drop(const char *table_path, const char *data_path, const std::vector<
     return RC::IOERR_CLOSE;
   }
 
-  fd = ::open(data_path, O_RDONLY | O_CLOEXEC);
-  if (fd < 0) {
-    if (ENOENT == errno) {
-      LOG_ERROR("Table data file does not exist. %s, ENOENT, %s", data_path, strerror(errno));
-      return RC::SCHEMA_TABLE_NOT_EXIST;
-    }
-    LOG_ERROR("Checking table file failed. filename=%s, errmsg=%d:%s", data_path, errno, strerror(errno));
-    return RC::IOERR_OPEN;
-  }
-  close(fd);
-
   // remove 
   if (remove(data_path) != 0) {
     LOG_ERROR("Failed to remove table data file. filename=%s, errmsg=%d:%s", data_path, errno, strerror(errno));
     return RC::IOERR_CLOSE;
   }
 
-  for (auto index_path : index_paths) {
-    fd = ::open(index_path.c_str(), O_RDONLY | O_CLOEXEC);
-    if (fd < 0) {
-      if (ENOENT == errno) {
-        LOG_ERROR("Table index file does not exist. %s, ENOENT, %s", index_path.c_str(), strerror(errno));
-        return RC::SCHEMA_TABLE_NOT_EXIST;
-      }
-      LOG_ERROR("Checking table file failed. filename=%s, errmsg=%d:%s", index_path.c_str(), errno, strerror(errno));
-      return RC::IOERR_OPEN;
-    }
-    close(fd);
-    if (remove(index_path.c_str()) != 0) {
-      LOG_ERROR("Failed to remove table index file. filename=%s, errmsg=%d:%s", index_path.c_str(), errno, strerror(errno));
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; i++) {
+    ((BplusTreeIndex *)indexes_[0])->close();
+    if (remove(index_paths[i].c_str()) != 0) {
+      LOG_ERROR("Failed to remove table index file. filename=%s, errmsg=%d:%s", index_paths[i].c_str(), errno, strerror(errno));
       return RC::IOERR_CLOSE;
     }
   }
 
   BufferPoolManager &bpm = BufferPoolManager::instance();
-  RC rc = bpm.close_file(data_path);
+  rc = bpm.close_file(data_path);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to close disk buffer pool of data file. file name=%s", data_path);
     return rc;
