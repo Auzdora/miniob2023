@@ -57,18 +57,12 @@ RC UpdatePhysicalOperator::next()
     // todo
     Record new_record;
     // 新record data初始化
-    char * new_data = (char*) malloc(old_record.len());
+    char * new_data = (char*) malloc(table_->table_meta().record_size());
     memset(new_data,0,table_->table_meta().record_size());
-
-    int len = 0;
-    if (value_.length()<field_.meta()->len())
-      len = value_.length();
-    else 
-      len = field_.meta()->len();
 
     // 将更新的数据覆盖到新record对应的field中
     memcpy(new_data,old_record.data(),table_->table_meta().record_size());
-    memcpy(new_data+field_.meta()->offset(),value_.data(),len);
+    memcpy(new_data+field_.meta()->offset(),value_.data(),field_.meta()->len());
     new_record.set_data(new_data,table_->table_meta().record_size());
 
     rc = trx_->update_record(table_, old_record,new_record);
