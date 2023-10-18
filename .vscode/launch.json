@@ -4,26 +4,76 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // {
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "name": "Debug",
+        //     "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
+        //     "args": [
+        //         "-f",
+        //         "${workspaceFolder}/etc/observer.ini",
+        //         "-P",
+        //         "cli"
+        //     ],
+        //     // "cwd": "${workspaceFolder}/${defaultBuildTask}/",
+        //     "externalConsole": false,
+        //     "internalConsoleOptions": "openOnSessionStart",
+        // },
+        // {
+        //     "type": "lldb",
+        //     "request": "launch",
+        //     "name": "LLDB",
+        //     "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
+        //     "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
+        //     "cwd": "${workspaceFolder}/${defaultBuildTask}/"
+        // }
         {
+            "name": "(gdb) 启动",
             "type": "cppdbg",
             "request": "launch",
-            "name": "Debug",
             "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
-            "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
+            "args": [
+                "-f",
+                "${workspaceFolder}/etc/observer.ini",
+                "-P",
+                "cli"
+            ],
+            "stopAtEntry": false,
             "cwd": "${workspaceFolder}/${defaultBuildTask}/",
-            "externalConsole":true,
-            "internalConsoleOptions": "openOnSessionStart",
-            "osx": {
-                "MIMode": "lldb"
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "将反汇编风格设置为 Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "sourceFileMap": {
+                "${workspaceFolder}/build_debug/src/observer/yacc_sql.y": {
+                    "editorPath": "${workspaceFolder}/src/observer/sql/parser/yacc_sql.y",
+                    "useForBreakpoints": false,
+                },
+                "${workspaceFolder}/build_debug/src/observer/yacc_sql.cpp": {
+                    "editorPath": "${workspaceFolder}/src/observer/sql/parser/yacc_sql.cpp",
+                    "useForBreakpoints": true,
+                },
+                "${workspaceFolder}/build_debug/src/observer/lex_sql.l": {
+                    "editorPath": "${workspaceFolder}/src/observer/sql/parser/lex_sql.l",
+                    "useForBreakpoints": false,
+                },
+                "${workspaceFolder}/build_debug/src/observer/lex_sql.cpp": {
+                    "editorPath": "${workspaceFolder}/src/observer/sql/parser/lex_sql.cpp",
+                    "useForBreakpoints": false,
+                }
             }
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "LLDB",
-            "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
-            "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
-            "cwd": "${workspaceFolder}/${defaultBuildTask}/"
+            // "preLaunchTask": "CMake Build"
         }
     ]
 }
