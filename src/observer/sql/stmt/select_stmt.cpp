@@ -25,6 +25,13 @@ SelectStmt::~SelectStmt()
     delete filter_stmt_;
     filter_stmt_ = nullptr;
   }
+  if (!filter_stmts_.empty()) {
+    for (auto filter:filter_stmts_)
+    {
+      delete filter;
+      filter = nullptr;
+    }
+  }
 }
 
 static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
@@ -48,6 +55,24 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   std::unordered_map<std::string, Table *> table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
     const char *table_name = select_sql.relations[i].c_str();
+    if (nullptr == table_name) {
+      LOG_WARN("invalid argument. relation name is null. index=%d", i);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    Table *table = db->find_table(table_name);
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    tables.push_back(table);
+    table_map.insert(std::pair<std::string, Table *>(table_name, table));
+  }
+
+  // collect join tables in `inner join` statement
+  for (size_t i = 0; i < select_sql.innerJoins.size(); i++) {
+    const char *table_name = select_sql.innerJoins[i].relation.c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -130,8 +155,26 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
-  // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
+  // create filters statement in `inner join` statement
+  std::vector<FilterStmt *> filter_stmts;
+  for (size_t i = 0; i < select_sql.innerJoins.size(); i++)
+  {
+    RC rc = FilterStmt::create(db,
+      default_table,
+      &table_map,
+      select_sql.innerJoins[i].conditions.data(),
+      static_cast<int>(select_sql.innerJoins[i].conditions.size()),
+      filter_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct filter stmt");
+      return rc;
+    }
+    filter_stmts.emplace_back(filter_stmt);
+  }
+
+  // create filter statement in `where` statement
+  filter_stmt = nullptr;
   RC rc = FilterStmt::create(db,
       default_table,
       &table_map,
@@ -149,6 +192,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->filter_stmts_.swap(filter_stmts);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

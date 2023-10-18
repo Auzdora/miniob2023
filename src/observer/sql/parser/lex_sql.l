@@ -91,6 +91,8 @@ TABLE                                   RETURN_TOKEN(TABLE);
 TABLES                                  RETURN_TOKEN(TABLES);
 INDEX                                   RETURN_TOKEN(INDEX);
 ON                                      RETURN_TOKEN(ON);
+INNER                                   RETURN_TOKEN(INNER);
+JOIN                                    RETURN_TOKEN(JOIN);
 SHOW                                    RETURN_TOKEN(SHOW);
 SYNC                                    RETURN_TOKEN(SYNC);
 SELECT                                  RETURN_TOKEN(SELECT);

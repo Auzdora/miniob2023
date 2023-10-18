@@ -90,6 +90,7 @@ RC LogicalPlanGenerator::create_plan(
 
   const std::vector<Table *> &tables = select_stmt->tables();
   const std::vector<Field> &all_fields = select_stmt->query_fields();
+  int inner_join_idx = 0;
   for (Table *table : tables) {
     std::vector<Field> fields;
     for (const Field &field : all_fields) {
@@ -106,6 +107,17 @@ RC LogicalPlanGenerator::create_plan(
       join_oper->add_child(std::move(table_oper));
       join_oper->add_child(std::move(table_get_oper));
       table_oper = unique_ptr<LogicalOperator>(join_oper);
+      if (inner_join_idx < select_stmt->filter_stmts().size()){
+        unique_ptr<LogicalOperator> predicate_oper;
+        RC rc = create_plan(select_stmt->filter_stmts()[inner_join_idx], predicate_oper);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+          return rc;
+        }
+        predicate_oper->add_child(std::move(table_oper));
+        table_oper = std::move(predicate_oper);
+        inner_join_idx++;
+      }
     }
   }
 

@@ -57,9 +57,14 @@ public:
   {
     return filter_stmt_;
   }
+  std::vector<FilterStmt *> filter_stmts() const
+  {
+    return filter_stmts_;
+  }
 
 private:
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
+  std::vector<FilterStmt *> filter_stmts_;   // 多个filter for join 或者其他筛选
 };

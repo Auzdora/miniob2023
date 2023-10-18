@@ -62,6 +62,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         INDEX
         CALC
         SELECT
+        INNER
+        JOIN
         DESC
         SHOW
         SYNC
@@ -109,11 +111,13 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
+  InnerJoinSqlNode *                inner_join;
   std::vector<Expression *> *       expression_list;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::string> *        relation_list;
+  std::vector<InnerJoinSqlNode> *   inner_join_list;
   char *                            string;
   int                               number;
   float                             floats;
@@ -133,6 +137,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <number>              number
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
+%type <inner_join>          inner_join
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
@@ -141,6 +146,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
+%type <inner_join_list>     innerJoin_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <sql_node>            calc_stmt
@@ -427,7 +433,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where
+    SELECT select_attr FROM ID rel_list innerJoin_list where
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -440,10 +446,14 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       $$->selection.relations.push_back($4);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
-
       if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
+        $$->selection.innerJoins.swap(*$6);
+        std::reverse($$->selection.innerJoins.begin(), $$->selection.innerJoins.end());
         delete $6;
+      }
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
       }
       free($4);
     }
@@ -568,6 +578,27 @@ rel_list:
       free($2);
     }
     ;
+innerJoin_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    |inner_join innerJoin_list{
+      if ($2 == nullptr)
+        $$ = new std::vector<InnerJoinSqlNode>;
+      else
+        $$ = $2;
+      $$->emplace_back(*$1);
+      delete $1;
+    }
+inner_join:
+    INNER JOIN ID ON condition_list {
+      $$ = new InnerJoinSqlNode;
+      $$->relation = $3;
+      delete $3;
+      $$->conditions.swap(*$5);
+      delete $5;
+    }
 where:
     /* empty */
     {

@@ -77,6 +77,17 @@ struct ConditionSqlNode
 };
 
 /**
+ * @brief 描述一个inner join语句
+ * @ingroup SQLParser
+ * @details inner join 的表对象和对应的多个条件
+ */
+struct InnerJoinSqlNode
+{
+  std::string                     relation;        ///< inner join 的表对象
+  std::vector<ConditionSqlNode>   conditions;      ///< 对应的条件
+};
+
+/**
  * @brief 描述一个select语句
  * @ingroup SQLParser
  * @details 一个正常的select语句描述起来比这个要复杂很多，这里做了简化。
@@ -86,11 +97,11 @@ struct ConditionSqlNode
  * where 条件 conditions，这里表示使用AND串联起来多个条件。正常的SQL语句会有OR，NOT等，
  * 甚至可以包含复杂的表达式。
  */
-
 struct SelectSqlNode
 {
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<std::string>        relations;     ///< 查询的表
+  std::vector<InnerJoinSqlNode>   innerJoins;    ///< inner join语句
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
 };
 
