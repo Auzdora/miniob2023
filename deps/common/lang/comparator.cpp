@@ -40,6 +40,18 @@ int compare_float(void *arg1, void *arg2)
   return 0;
 }
 
+int compare_other(float arg1,float arg2)
+{
+  float cmp = arg1 - arg2;
+  if (cmp > EPSILON) {
+    return 1;
+  }
+  if (cmp < -EPSILON) {
+    return -1;
+  }
+  return 0;
+}
+
 int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_length)
 {
   const char *s1 = (const char *)arg1;
