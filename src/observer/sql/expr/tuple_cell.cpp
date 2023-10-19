@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
 
-TupleCellSpec::TupleCellSpec(const char *table_name, const char *field_name, const char *alias)
+TupleCellSpec::TupleCellSpec(const char *table_name, const char *field_name, const char *alias, const char *aggr_name)
 {
   if (table_name) {
     table_name_ = table_name;
@@ -27,10 +27,15 @@ TupleCellSpec::TupleCellSpec(const char *table_name, const char *field_name, con
   if (field_name) {
     field_name_ = field_name;
   }
+  if (aggr_name) {
+    aggr_name_ = aggr_name;
+  }
   if (alias) {
     alias_ = alias;
   } else {
-    if (table_name_.empty()) {
+    if (!aggr_name_.empty()) {
+      alias_ = aggr_name_ + "(" + field_name_ + ")";
+    } else if (table_name_.empty()) {
       alias_ = field_name_;
     } else {
       alias_ = table_name_ + "." + field_name_;

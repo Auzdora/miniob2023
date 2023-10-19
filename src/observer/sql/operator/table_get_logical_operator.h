@@ -25,6 +25,7 @@ class TableGetLogicalOperator : public LogicalOperator
 {
 public:
   TableGetLogicalOperator(Table *table, const std::vector<Field> &fields, bool readonly);
+  TableGetLogicalOperator(Table *table, const std::vector<Field> &fields, const std::vector<std::string> &aggr_funcs, bool readonly);
   virtual ~TableGetLogicalOperator() = default;
 
   LogicalOperatorType type() const override
@@ -44,6 +45,7 @@ public:
 private:
   Table *table_ = nullptr;
   std::vector<Field> fields_;
+  std::vector<std::string> aggr_funcs_;
   bool readonly_ = false;
 
   // 与当前表相关的过滤操作，可以尝试在遍历数据时执行
