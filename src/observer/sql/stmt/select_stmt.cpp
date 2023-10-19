@@ -13,10 +13,13 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/stmt/select_stmt.h"
+#include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
 #include "storage/db/db.h"
+#include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 
 SelectStmt::~SelectStmt()
@@ -119,7 +122,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         }
 
         Table *table = iter->second;
-        if (0 == strcmp(field_name, "*")) {
+        if (0 == strcmp(field_name, "*") && select_sql.aggregations.size() > 0) {
+          query_fields.push_back(Field(table, new FieldMeta("*",AttrType::AGGRSTAR, 0, 1, true)));
+        } else if (0 == strcmp(field_name, "*")) {
           wildcard_fields(table, query_fields);
         } else {
           const FieldMeta *field_meta = table->table_meta().field(field_name);
@@ -155,6 +160,24 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
+  // collect aggregation functions in `select` statement
+  // TODO: not support multi table for now
+  std::vector<std::string> aggr_funcs;
+  for (int i = static_cast<int>(select_sql.aggregations.size()) - 1; i >= 0; i--) {
+    const AggrAttrSqlNode &aggr_attr = select_sql.aggregations[i];
+    if (0 == strcmp(aggr_attr.attribute_name.c_str(), "*")) {
+      aggr_funcs.push_back(aggr_attr.aggregation_name);
+      continue;
+    }
+    const FieldMeta *field_meta = default_table->table_meta().field(aggr_attr.attribute_name.c_str());
+    if (nullptr == field_meta) {
+      LOG_WARN("no such field. field=%s.%s.%s", db->name(), default_table->name(), aggr_attr.attribute_name.c_str());
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    aggr_funcs.push_back(aggr_attr.aggregation_name);
+  }
+
+  // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
   // create filters statement in `inner join` statement
   std::vector<FilterStmt *> filter_stmts;
@@ -189,6 +212,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
   // TODO add expression copy
+  select_stmt->aggr_funcs_.swap(aggr_funcs);
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;

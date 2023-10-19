@@ -15,10 +15,11 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/operator/logical_operator.h"
+#include <string>
 #include <vector>
 
 /**
- * @brief 聚合逻辑算子，用于执行aggregation函数
+ * @brief 逻辑算子，用于执行delete语句
  * @ingroup LogicalOperator
  */
 class AggregationLogicalOperator : public LogicalOperator 
@@ -31,8 +32,8 @@ public:
   {
     return LogicalOperatorType::AGGREGATION;
   }
-
-  const std::vector<std::string> &aggr_funcs() {
+  const std::vector<std::string> &aggr_funcs() const
+  {
     return aggr_funcs_;
   }
 

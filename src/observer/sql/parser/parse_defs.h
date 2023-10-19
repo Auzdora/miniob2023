@@ -41,6 +41,17 @@ struct RelAttrSqlNode
 };
 
 /**
+ * @brief 描述一个聚合函数
+ * @ingroup SQLParser
+ * @details 表示一个聚合函数 min(name), max(age)等等
+ */
+struct AggrAttrSqlNode
+{
+  std::string aggregation_name;   ///< aggregation name          聚合函数名
+  std::string attribute_name;     ///< attribute name            属性名
+};
+
+/**
  * @brief 描述比较运算符
  * @ingroup SQLParser
  */
@@ -99,6 +110,7 @@ struct InnerJoinSqlNode
  */
 struct SelectSqlNode
 {
+  std::vector<AggrAttrSqlNode>    aggregations;  ///< aggregation functions in select clause
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<std::string>        relations;     ///< 查询的表
   std::vector<InnerJoinSqlNode>   innerJoins;    ///< inner join语句

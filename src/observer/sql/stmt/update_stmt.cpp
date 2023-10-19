@@ -28,14 +28,14 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   std::string table_name = update.relation_name;
   if (nullptr == db || table_name.empty()) {
     LOG_WARN("invalid argument. db=%p, table_name=%p", 
-             db, table_name);
+             db, table_name.c_str());
     return RC::INVALID_ARGUMENT;
   }
 
   // 判断table是否存在
   Table *table = db->find_table(table_name.c_str());
   if (nullptr == table) {
-    LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+    LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name.c_str());
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
@@ -52,7 +52,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       const AttrType value_type = value->attr_type();
       if (field_type != value_type) { // TODO try to convert the value type to field type
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-               table_name, field_meta->name(), field_type, value_type);
+               table_name.c_str(), field_meta->name(), field_type, value_type);
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;
       }
       break;

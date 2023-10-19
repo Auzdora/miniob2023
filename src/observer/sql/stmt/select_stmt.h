@@ -61,8 +61,13 @@ public:
   {
     return filter_stmts_;
   }
+  const std::vector<std::string> &aggr_funcs() const
+  {
+    return aggr_funcs_;
+  }
 
 private:
+  std::vector<std::string> aggr_funcs_;
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;

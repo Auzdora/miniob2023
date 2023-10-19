@@ -108,6 +108,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
+  AggrAttrSqlNode *                 aggr_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
@@ -116,6 +117,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
+  std::vector<AggrAttrSqlNode> *    aggr_attr_list;
   std::vector<std::string> *        relation_list;
   std::vector<InnerJoinSqlNode> *   inner_join_list;
   char *                            string;
@@ -138,15 +140,18 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
 %type <inner_join>          inner_join
+%type <aggr_attr>           aggr_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
 %type <condition_list>      where
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
+%type <aggr_attr_list>      select_aggr_attr
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
 %type <inner_join_list>     innerJoin_list
+%type <aggr_attr_list>      aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <sql_node>            calc_stmt
@@ -457,7 +462,35 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       free($4);
     }
+    | SELECT select_aggr_attr FROM ID rel_list where
+    {
+      $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($2 != nullptr) {
+        $$->selection.aggregations.swap(*$2);
+        // add attribute too
+        for (int i=0; i < $$->selection.aggregations.size(); i++) {
+          RelAttrSqlNode attr;
+          attr.relation_name  = $4;
+          attr.attribute_name = $$->selection.aggregations[i].attribute_name;
+          $$->selection.attributes.emplace_back(attr);
+        }
+        delete $2;
+      }
+      if ($5 != nullptr) {
+        $$->selection.relations.swap(*$5);
+        delete $5;
+      }
+      $$->selection.relations.push_back($4);
+      std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
+
+      if ($6 != nullptr) {
+        $$->selection.conditions.swap(*$6);
+        delete $6;
+      }
+      free($4);
+    }
     ;
+
 calc_stmt:
     CALC expression_list
     {
@@ -528,6 +561,17 @@ select_attr:
       $$->emplace_back(*$1);
       delete $1;
     }
+
+select_aggr_attr:
+    aggr_attr aggr_attr_list {
+      if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new std::vector<AggrAttrSqlNode>;
+      }
+      $$->emplace_back(*$1);
+      delete $1;
+    }
     ;
 
 rel_attr:
@@ -545,6 +589,31 @@ rel_attr:
     }
     ;
 
+aggr_attr:
+    ID LBRACE '*' RBRACE {
+      if (strcmp($1, "count") != 0) {
+        return -1;
+      }
+      $$ = new AggrAttrSqlNode;
+      $$->aggregation_name = "count";
+      $$->attribute_name   = "*";
+      free($1);
+    }
+    | ID LBRACE ID RBRACE {
+      $$ = new AggrAttrSqlNode;
+      $$->aggregation_name = $1;
+      $$->attribute_name   = $3;
+      free($1);
+      free($3);
+    }
+    | ID LBRACE RBRACE {
+      return -1;
+    }
+    | ID LBRACE error RBRACE {
+      return -1;
+    }
+    ;
+
 attr_list:
     /* empty */
     {
@@ -557,6 +626,22 @@ attr_list:
         $$ = new std::vector<RelAttrSqlNode>;
       }
 
+      $$->emplace_back(*$2);
+      delete $2;
+    }
+    ;
+
+aggr_attr_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA aggr_attr aggr_attr_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<AggrAttrSqlNode>; 
+      }
       $$->emplace_back(*$2);
       delete $2;
     }

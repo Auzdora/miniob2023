@@ -18,6 +18,11 @@ TableGetLogicalOperator::TableGetLogicalOperator(Table *table, const std::vector
     : table_(table), fields_(fields), readonly_(readonly)
 {}
 
+TableGetLogicalOperator::TableGetLogicalOperator(
+    Table *table, const std::vector<Field> &fields, const std::vector<std::string> &aggr_funcs, bool readonly)
+    : table_(table), fields_(fields), aggr_funcs_(aggr_funcs), readonly_(readonly)
+{}
+
 void TableGetLogicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)
 {
   predicates_ = std::move(exprs);

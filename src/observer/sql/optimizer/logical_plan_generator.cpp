@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/optimizer/logical_plan_generator.h"
 
+#include "common/log/log.h"
+#include "sql/operator/aggr_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
@@ -34,6 +36,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/update_stmt.h"
+#include "storage/field/field.h"
+#include <memory>
+#include <vector>
 
 using namespace std;
 
@@ -91,6 +96,13 @@ RC LogicalPlanGenerator::create_plan(
   const std::vector<Table *> &tables = select_stmt->tables();
   const std::vector<Field> &all_fields = select_stmt->query_fields();
   int inner_join_idx = 0;
+  const std::vector<std::string> &all_aggr_funcs = select_stmt->aggr_funcs();
+  // only support aggr on one table for now
+  if (!all_aggr_funcs.empty() && tables.size() > 1) {
+    LOG_WARN("do not support aggregation on multiple tables");
+    return RC::INTERNAL;
+  }
+  
   for (Table *table : tables) {
     std::vector<Field> fields;
     for (const Field &field : all_fields) {
@@ -99,7 +111,7 @@ RC LogicalPlanGenerator::create_plan(
       }
     }
 
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true/*readonly*/));
+    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, all_aggr_funcs, true/*readonly*/));
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
     } else {
@@ -138,6 +150,12 @@ RC LogicalPlanGenerator::create_plan(
     if (table_oper) {
       project_oper->add_child(std::move(table_oper));
     }
+  }
+  if (!all_aggr_funcs.empty()) {
+    unique_ptr<LogicalOperator> aggr_oper(new AggregationLogicalOperator(all_aggr_funcs));
+    aggr_oper->add_child(std::move(project_oper));
+    logical_operator.swap(aggr_oper);
+    return RC::SUCCESS;
   }
 
   logical_operator.swap(project_oper);

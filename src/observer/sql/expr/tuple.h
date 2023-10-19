@@ -59,6 +59,11 @@ public:
   {
     append_cell(TupleCellSpec(table, field));
   }
+  // new add, support aggregation
+  void append_cell(const char *table, const char *field, const char *aggr)
+  {
+    append_cell(TupleCellSpec(table, field, nullptr, aggr));
+  }
   void append_cell(const char *alias)
   {
     append_cell(TupleCellSpec(alias));
@@ -72,8 +77,12 @@ public:
     return cells_[i];
   }
 
+  void set_use_aggr(bool use) { use_aggr_ = use; }
+  const bool get_use_aggr() { return use_aggr_; }
+
 private:
   std::vector<TupleCellSpec> cells_;
+  bool use_aggr_{false};
 };
 
 /**
