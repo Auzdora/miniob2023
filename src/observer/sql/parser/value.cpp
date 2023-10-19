@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -12,25 +12,24 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2023/06/28.
 //
 
-#include <sstream>
 #include "sql/parser/value.h"
-#include "storage/field/field.h"
-#include "common/log/log.h"
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
+#include "common/log/log.h"
+#include "storage/field/field.h"
+#include <sstream>
 
 const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "floats", "booleans"};
 
-const char *attr_type_to_string(AttrType type)
-{
+const char *attr_type_to_string(AttrType type) {
   if (type >= UNDEFINED && type <= FLOATS) {
     return ATTR_TYPE_NAME[type];
   }
   return "unknown";
 }
-AttrType attr_type_from_string(const char *s)
-{
-  for (unsigned int i = 0; i < sizeof(ATTR_TYPE_NAME) / sizeof(ATTR_TYPE_NAME[0]); i++) {
+AttrType attr_type_from_string(const char *s) {
+  for (unsigned int i = 0;
+       i < sizeof(ATTR_TYPE_NAME) / sizeof(ATTR_TYPE_NAME[0]); i++) {
     if (0 == strcmp(ATTR_TYPE_NAME[i], s)) {
       return (AttrType)i;
     }
@@ -66,18 +65,11 @@ Value::Value(float val)
   set_float(val);
 }
 
-Value::Value(bool val)
-{
-  set_boolean(val);
-}
+Value::Value(bool val) { set_boolean(val); }
 
-Value::Value(const char *s, int len /*= 0*/)
-{
-  set_string(s, len);
-}
+Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
-void Value::set_data(char *data, int length)
-{
+void Value::set_data(char *data, int length) {
   switch (attr_type_) {
     case CHARS: {
       set_string(data, length);
@@ -103,8 +95,7 @@ void Value::set_data(char *data, int length)
     } break;
   }
 }
-void Value::set_int(int val)
-{
+void Value::set_int(int val) {
   attr_type_ = INTS;
   num_value_.int_value_ = val;
   length_ = sizeof(val);
@@ -123,14 +114,12 @@ void Value::set_float(float val)
   num_value_.float_value_ = val;
   length_ = sizeof(val);
 }
-void Value::set_boolean(bool val)
-{
+void Value::set_boolean(bool val) {
   attr_type_ = BOOLEANS;
   num_value_.bool_value_ = val;
   length_ = sizeof(val);
 }
-void Value::set_string(const char *s, int len /*= 0*/)
-{
+void Value::set_string(const char *s, int len /*= 0*/) {
   attr_type_ = CHARS;
   if (len > 0) {
     len = strnlen(s, len);
@@ -141,8 +130,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
   length_ = str_value_.length();
 }
 
-void Value::set_value(const Value &value)
-{
+void Value::set_value(const Value &value) {
   switch (value.attr_type_) {
     case INTS: {
       set_int(value.get_int());
@@ -165,20 +153,18 @@ void Value::set_value(const Value &value)
   }
 }
 
-const char *Value::data() const
-{
+const char *Value::data() const {
   switch (attr_type_) {
-    case CHARS: {
-      return str_value_.c_str();
-    } break;
-    default: {
-      return (const char *)&num_value_;
-    } break;
+  case CHARS: {
+    return str_value_.c_str();
+  } break;
+  default: {
+    return (const char *)&num_value_;
+  } break;
   }
 }
 
-std::string Value::to_string() const
-{
+std::string Value::to_string() const {
   std::stringstream os;
   switch (attr_type_) {
     case INTS: {
@@ -203,8 +189,7 @@ std::string Value::to_string() const
   return os.str();
 }
 
-int Value::compare(const Value &other) const
-{
+int Value::compare(const Value &other) const {
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case INTS: {
@@ -231,7 +216,8 @@ int Value::compare(const Value &other) const
     }
   } else if (this->attr_type_ == INTS && other.attr_type_ == FLOATS) {
     float this_data = this->num_value_.int_value_;
-    return common::compare_float((void *)&this_data, (void *)&other.num_value_.float_value_);
+    return common::compare_float((void *)&this_data,
+                                 (void *)&other.num_value_.float_value_);
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
     float other_data = other.num_value_.int_value_;
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
@@ -239,7 +225,7 @@ int Value::compare(const Value &other) const
     return common::compare_other(this->get_float(),other.get_float());
   }
   LOG_WARN("not supported");
-  return -1;  // TODO return rc?
+  return -1; // TODO return rc?
 }
 
 int Value::get_int() const
@@ -379,5 +365,36 @@ bool Value::get_boolean() const
       return false;
     }
   }
-  return false;
+}
+
+// like条件过滤，后面考虑改写common中去
+// other是pattern
+bool Value::compare(const Value &other, int op) const {
+  int i = 0, j = 0;
+  int i_len = this->str_value_.length();
+  int p_len = other.str_value_.length();
+  std::string input = this->str_value_;
+  std::string pattern = other.str_value_;
+  int prev_i = -1, prev_j = -1;
+
+  while (i < i_len) {
+    if (j < p_len && (pattern[j] == input[i] || pattern[j] == '_')) {
+      i++;
+      j++;
+    } else if (j < p_len && pattern[j] == '%') {
+      prev_i = i;
+      prev_j = j++;
+    } else if (prev_i != -1) {
+      i = ++prev_i;
+      j = prev_j + 1;
+    } else {
+      return false;
+    }
+  }
+
+  while (j < p_len && pattern[j] == '%') {
+    j++;
+  }
+
+  return j == p_len;
 }

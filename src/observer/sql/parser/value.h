@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -18,10 +18,9 @@ See the Mulan PSL v2 for more details. */
 
 /**
  * @brief 属性的类型
- * 
+ *
  */
-enum AttrType
-{
+enum AttrType {
   UNDEFINED,
   CHARS,          ///< 字符串类型
   INTS,           ///< 整数类型(4字节)
@@ -36,15 +35,14 @@ AttrType attr_type_from_string(const char *s);
 int check_date(int y, int m, int d);
 /**
  * @brief 属性的值
- * 
+ *
  */
-class Value 
-{
+class Value {
 public:
   Value() = default;
 
-  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type)
-  {
+  Value(AttrType attr_type, char *data, int length = 4)
+      : attr_type_(attr_type) {
     this->set_data(data, length);
   }
 
@@ -57,13 +55,9 @@ public:
   Value(const Value &other) = default;
   Value &operator=(const Value &other) = default;
 
-  void set_type(AttrType type)
-  {
-    this->attr_type_ = type;
-  }
+  void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
-  void set_data(const char *data, int length)
-  {
+  void set_data(const char *data, int length) {
     this->set_data(const_cast<char *>(data), length);
   }
   void set_int(int val);
@@ -77,16 +71,12 @@ public:
 
   int compare(const Value &other) const;
 
-  const char *data() const;
-  int length() const
-  {
-    return length_;
-  }
+  bool compare(const Value &other, int op) const;
 
-  AttrType attr_type() const
-  {
-    return attr_type_;
-  }
+  const char *data() const;
+  int length() const { return length_; }
+
+  AttrType attr_type() const { return attr_type_; }
 
 public:
   /**
