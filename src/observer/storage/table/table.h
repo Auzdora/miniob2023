@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <functional>
+#include "storage/field/field_meta.h"
 #include "storage/table/table_meta.h"
 
 struct RID;
@@ -90,6 +91,8 @@ public:
 
   // TODO refactor
   RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name);
+  // Create multi index support
+  RC create_index(Trx *trx, const std::vector<const FieldMeta *> field_metas, const char *index_name);
 
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, bool readonly);
 

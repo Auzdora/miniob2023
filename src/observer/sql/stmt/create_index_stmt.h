@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "sql/stmt/stmt.h"
 
@@ -34,6 +35,11 @@ public:
           field_meta_(field_meta),
           index_name_(index_name)
   {}
+  CreateIndexStmt(Table *table, const std::vector<const FieldMeta *> &field_metas, const std::string &index_name)
+        : table_(table),
+          field_metas_(field_metas),
+          index_name_(index_name)
+  {}
 
   virtual ~CreateIndexStmt() = default;
 
@@ -41,6 +47,7 @@ public:
 
   Table *table() const { return table_; }
   const FieldMeta *field_meta() const { return field_meta_; }
+  const std::vector<const FieldMeta *> &field_metas() const { return field_metas_; }
   const std::string &index_name() const { return index_name_; }
 
 public:
@@ -50,4 +57,5 @@ private:
   Table *table_ = nullptr;
   const FieldMeta *field_meta_ = nullptr;
   std::string index_name_;
+  std::vector<const FieldMeta *> field_metas_; 
 };
