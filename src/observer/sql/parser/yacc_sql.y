@@ -491,6 +491,10 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       free($4);
     }
+    | SELECT error FROM ID rel_list where
+    {
+      return -1;
+    }
     ;
 
 calc_stmt:
