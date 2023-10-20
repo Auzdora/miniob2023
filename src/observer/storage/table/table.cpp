@@ -480,6 +480,9 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
 
 RC Table::create_index(Trx *trx, const std::vector<const FieldMeta *> field_metas, const char *index_name)
 {
+  if (field_metas.size() == 1) {
+    return create_index(trx, field_metas.front(), index_name);
+  }
   return RC::SUCCESS;
 }
 
