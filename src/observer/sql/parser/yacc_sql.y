@@ -102,6 +102,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         NE
         LIKE
         NOT
+        UNIQUE
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -295,8 +296,23 @@ create_index_stmt:    /*create index 语句的语法解析树*/
         create_index.attribute_names.swap(*$7);
         delete $7;
       }
+      create_index.is_unique = false;
       free($3);
       free($5);
+    }
+    | CREATE UNIQUE INDEX ID ON ID LBRACE index_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+      if ($8 != nullptr) {
+        create_index.attribute_names.swap(*$8);
+        delete $8;
+      }
+      create_index.is_unique = true;
+      free($4);
+      free($6);
     }
     ;
 

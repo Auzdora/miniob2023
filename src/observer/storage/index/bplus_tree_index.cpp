@@ -30,9 +30,9 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, co
     return RC::RECORD_OPENNED;
   }
 
-  Index::init(index_meta, field_meta);
+  Index::init(index_meta, field_meta, index_meta.unique());
 
-  RC rc = index_handler_.create(file_name, field_meta.type(), field_meta.len());
+  RC rc = index_handler_.create(file_name, field_meta.type(), field_meta.len(), is_unique_);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
         file_name,
@@ -58,7 +58,7 @@ RC BplusTreeIndex::open(const char *file_name, const IndexMeta &index_meta, cons
     return RC::RECORD_OPENNED;
   }
 
-  Index::init(index_meta, field_meta);
+  Index::init(index_meta, field_meta, index_meta.unique());
 
   RC rc = index_handler_.open(file_name);
   if (RC::SUCCESS != rc) {
@@ -69,6 +69,7 @@ RC BplusTreeIndex::open(const char *file_name, const IndexMeta &index_meta, cons
         strrc(rc));
     return rc;
   }
+  index_handler_.set_unique(index_meta.unique());
 
   inited_ = true;
   LOG_INFO(

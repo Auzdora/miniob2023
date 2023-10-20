@@ -100,8 +100,9 @@ private:
 class KeyComparator 
 {
 public:
-  void init(AttrType type, int length)
+  void init(AttrType type, int length, bool is_unique=false)
   {
+    is_unique_ = is_unique;
     attr_comparator_.init(type, length);
   }
 
@@ -117,13 +118,19 @@ public:
       return result;
     }
 
+    if (is_unique_) {
+      return result;
+    }
+
     const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
     const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
     return RID::compare(rid1, rid2);
   }
+  void set_unique(bool is_unique) { is_unique_ = is_unique; }
 
 private:
   AttrComparator attr_comparator_;
+  bool is_unique_;
 };
 
 /**
@@ -228,6 +235,7 @@ struct IndexFileHeader
   int32_t attr_length;        ///< 键值的长度
   int32_t key_length;         ///< attr length + sizeof(RID)
   AttrType attr_type;         ///< 键值的类型
+  bool is_unique;             ///< 当前索引是否是唯一索引
 
   const std::string to_string()
   {
@@ -238,7 +246,8 @@ struct IndexFileHeader
        << "attr_type:" << attr_type << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
-       << "leaf_max_size:" << leaf_max_size << ";";
+       << "leaf_max_size:" << leaf_max_size << ","
+       << "is_unique: " << is_unique << ";";
 
     return ss.str();
   }
@@ -473,6 +482,7 @@ public:
   RC create(const char *file_name, 
             AttrType attr_type, 
             int attr_length, 
+            bool is_unique,
             int internal_max_size = -1, 
             int leaf_max_size = -1);
 
@@ -504,6 +514,10 @@ public:
   RC delete_entry(const char *user_key, const RID *rid);
 
   bool is_empty() const;
+  void set_unique(bool is_unique) {
+    is_unique_ = is_unique;
+    key_comparator_.set_unique(is_unique);
+  }
 
   /**
    * 获取指定值的record
@@ -578,6 +592,7 @@ protected:
   DiskBufferPool *disk_buffer_pool_ = nullptr;
   bool            header_dirty_ = false; // 
   IndexFileHeader file_header_;
+  bool            is_unique_ = false;
 
   // 在调整根节点时，需要加上这个锁。
   // 这个锁可以使用递归读写锁，但是这里偷懒先不改
@@ -629,6 +644,7 @@ private:
   bool touch_end();
 
 private:
+  bool is_unique_ = false;
   bool inited_ = false;
   BplusTreeHandler &tree_handler_;
 
