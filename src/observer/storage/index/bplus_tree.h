@@ -118,9 +118,9 @@ public:
       return result;
     }
 
-    if (is_unique_) {
-      return result;
-    }
+    // if (is_unique_) {
+    //   return result;
+    // }
 
     const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
     const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
@@ -504,14 +504,14 @@ public:
    * 即向索引中插入一个值为（user_key，rid）的键值对
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
-  RC insert_entry(const char *user_key, const RID *rid);
+  RC insert_entry(const char *user_key, const RID *rid, bool mvcc_unique_update=false);
 
   /**
    * 从IndexHandle句柄对应的索引中删除一个值为（*pData，rid）的索引项
    * @return RECORD_INVALID_KEY 指定值不存在
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
-  RC delete_entry(const char *user_key, const RID *rid);
+  RC delete_entry(const char *user_key, const RID *rid, bool mvcc_unique_update=false);
 
   bool is_empty() const;
   void set_unique(bool is_unique) {
@@ -585,7 +585,7 @@ protected:
   RC adjust_root(LatchMemo &latch_memo, Frame *root_frame);
 
 private:
-  common::MemPoolItem::unique_ptr make_key(const char *user_key, const RID &rid);
+  common::MemPoolItem::unique_ptr make_key(const char *user_key, const RID &rid, bool mvcc_unique_update=false);
   void free_key(char *key);
 
 protected:

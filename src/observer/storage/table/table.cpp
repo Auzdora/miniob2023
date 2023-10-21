@@ -225,7 +225,7 @@ RC Table::open(const char *meta_file, const char *base_dir)
   return rc;
 }
 
-RC Table::insert_record(Record &record)
+RC Table::insert_record(Record &record, bool mvcc_unique_update)
 {
   RC rc = RC::SUCCESS;
   rc = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid());
@@ -234,7 +234,7 @@ RC Table::insert_record(Record &record)
     return rc;
   }
 
-  rc = insert_entry_of_indexes(record.data(), record.rid());
+  rc = insert_entry_of_indexes(record.data(), record.rid(), mvcc_unique_update);
   if (rc != RC::SUCCESS) { // 可能出现了键值重复
     if (rc == RC::UNIQUE_DUPLICATE) {
       RC rc2 = record_handler_->delete_record(&record.rid());
@@ -494,11 +494,11 @@ RC Table::create_index(Trx *trx, const std::vector<const FieldMeta *> field_meta
   return RC::SUCCESS;
 }
 
-RC Table::delete_record(const Record &record)
+RC Table::delete_record(const Record &record, bool mvcc_unique_update)
 {
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
-    rc = index->delete_entry(record.data(), &record.rid());
+    rc = index->delete_entry(record.data(), &record.rid(), mvcc_unique_update);
     ASSERT(RC::SUCCESS == rc, 
            "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
@@ -516,11 +516,11 @@ RC Table::update_record(Record &old_record,Record &new_record)
   return rc;
 }
 
-RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
+RC Table::insert_entry_of_indexes(const char *record, const RID &rid, bool mvcc_unique_update)
 {
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
-    rc = index->insert_entry(record, &rid);
+    rc = index->insert_entry(record, &rid, mvcc_unique_update);
     if (rc != RC::SUCCESS) {
       break;
     }
@@ -528,11 +528,11 @@ RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
   return rc;
 }
 
-RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists)
+RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists, bool mvcc_unique_update)
 {
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
-    rc = index->delete_entry(record, &rid);
+    rc = index->delete_entry(record, &rid, mvcc_unique_update);
     if (rc != RC::SUCCESS) {
       if (rc != RC::RECORD_INVALID_KEY || !error_on_not_exists) {
         break;

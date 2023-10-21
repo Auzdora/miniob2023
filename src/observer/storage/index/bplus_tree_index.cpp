@@ -88,14 +88,14 @@ RC BplusTreeIndex::close()
   return RC::SUCCESS;
 }
 
-RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
+RC BplusTreeIndex::insert_entry(const char *record, const RID *rid, bool mvcc_unique_update)
 {
-  return index_handler_.insert_entry(record + field_meta_.offset(), rid);
+  return index_handler_.insert_entry(record + field_meta_.offset(), rid, mvcc_unique_update);
 }
 
-RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
+RC BplusTreeIndex::delete_entry(const char *record, const RID *rid, bool mvcc_unique_update)
 {
-  return index_handler_.delete_entry(record + field_meta_.offset(), rid);
+  return index_handler_.delete_entry(record + field_meta_.offset(), rid, mvcc_unique_update);
 }
 
 IndexScanner *BplusTreeIndex::create_scanner(

@@ -265,8 +265,8 @@ RC LogicalPlanGenerator::create_plan(
   int idx = 0;
   std::vector<Field> fields;
   // 添加需要更新的field 到逻辑算子对象成员中
-  for (int i = table->table_meta().sys_field_num(); i < table->table_meta().field_num(); i++) {
-    const FieldMeta *field_meta = table->table_meta().field(i);
+  for (int i = 0; i < table->table_meta().field_num()-table->table_meta().sys_field_num(); i++) {
+    const FieldMeta *field_meta = table->table_meta().field(i+table->table_meta().sys_field_num());
     fields.push_back(Field(table, field_meta));
     if (0 == strcmp(field_meta->name(),update_stmt->attrName().c_str())){
       idx = i;

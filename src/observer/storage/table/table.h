@@ -81,11 +81,15 @@ public:
    * @details 在表文件和索引中插入关联数据。这里只管在表中插入数据，不关心事务相关操作。
    * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID
    */
-  RC insert_record(Record &record);
-  RC delete_record(const Record &record);
+  RC insert_record(Record &record, bool mvcc_unique_update=false);
+  RC delete_record(const Record &record, bool mvcc_unique_update=false);
   RC update_record(Record &old_record,Record &new_record);
   RC visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor);
   RC get_record(const RID &rid, Record &record);
+
+  // 为了解决unique和删除的冲突，因为在mvcc中，如果一个事务begin，执行update操作
+  // 会先删除record，但我这里如果删除了record，其他事务就会看到这个未提交事物的影响
+  // 如果我不删除record，只在trx id上改变，删除之后的插入操作就会违反unique的判定
 
   RC recover_insert_record(Record &record);
 
@@ -110,8 +114,8 @@ public:
   RC sync();
 
 private:
-  RC insert_entry_of_indexes(const char *record, const RID &rid);
-  RC delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists);
+  RC insert_entry_of_indexes(const char *record, const RID &rid, bool mvcc_unique_update=false);
+  RC delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists, bool mvcc_unique_update=false);
 
 private:
   RC init_record_handler(const char *base_dir);
