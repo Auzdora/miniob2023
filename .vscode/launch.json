@@ -17,26 +17,12 @@
         //         "MIMode": "lldb"
         //     }
         // },
-        // {
-        //     "type": "lldb",
-        //     "request": "launch",
-        //     "name": "LLDB",
-        //     "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
-        //     "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
-        //     "cwd": "${workspaceFolder}/${defaultBuildTask}/",
-        //     "sourceMap": {
-        //         "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.y": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.y",
-        //         "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.cpp",
-        //         "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.l": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.l;",
-        //         "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.cpp",
-        //       },
-        // }
         {
             "type": "lldb",
             "request": "launch",
             "name": "LLDB",
             "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
-            "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-s", "miniob.sock", "-t", "mvcc"],
+            "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
             "cwd": "${workspaceFolder}/${defaultBuildTask}/",
             "sourceMap": {
                 "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.y": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.y",
@@ -45,5 +31,21 @@
                 "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.cpp",
               },
         }
+
+        // mvcc use this
+        // {
+        //     "type": "lldb",
+        //     "request": "launch",
+        //     "name": "LLDB",
+        //     "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
+        //     "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-s", "miniob.sock", "-t", "mvcc"],
+        //     "cwd": "${workspaceFolder}/${defaultBuildTask}/",
+        //     "sourceMap": {
+        //         "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.y": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.y",
+        //         "/Users/drcooper/miniob/build_debug/src/observer/yacc_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/yacc_sql.cpp",
+        //         "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.l": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.l;",
+        //         "/Users/drcooper/miniob/build_debug/src/observer/lex_sql.cpp": "/Users/drcooper/miniob/src/observer/sql/parser/lex_sql.cpp",
+        //       },
+        // }
     ]
 }

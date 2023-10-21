@@ -1645,15 +1645,15 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid, bool mvc
   }
   char *key = static_cast<char *>(pkey.get());
 
-  // memcpy(key, user_key, file_header_.attr_length);
+  memcpy(key, user_key, file_header_.attr_length);
   // if (!is_unique_) {
   //   memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
   // }
   if (!is_unique_) {
-    memcpy(key + file_header_.attr_length, &rid, sizeof(*rid));
+    memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
   } else {
     if (mvcc_unique_update) {
-      memcpy(key + file_header_.attr_length, &rid, sizeof(*rid));
+      memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
     } else {
       RID rid_useless{0,0};
       memcpy(key + file_header_.attr_length, &rid_useless, sizeof(rid_useless));
