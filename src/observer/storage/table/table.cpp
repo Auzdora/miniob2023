@@ -492,6 +492,10 @@ RC Table::create_index(Trx *trx, const std::vector<const FieldMeta *> field_meta
     return create_index(trx, field_metas.front(), index_name, is_unique);
   }
 
+  if (!is_unique) {
+    return RC::SUCCESS;
+  }
+
   // handle multi index
   TableMeta new_table_meta(table_meta_);
   for (int i = 0; i < field_metas.size(); i++) {
