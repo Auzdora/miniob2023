@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include <functional>
 #include "storage/table/table_meta.h"
 
+#define NULLABLE_TABLE_STRING "nullable_table"
+
 struct RID;
 class Record;
 class DiskBufferPool;
@@ -101,6 +103,11 @@ public:
 public:
   int32_t table_id() const { return table_meta_.table_id(); }
   const char *name() const;
+
+  /**
+   * @brief 检查数据是否能为null
+   */
+  bool check_value_null(const Value val,const FieldMeta field) const;
 
   const TableMeta &table_meta() const;
 

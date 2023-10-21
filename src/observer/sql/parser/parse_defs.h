@@ -63,6 +63,8 @@ enum CompOp {
   GREAT_THAN,  ///< ">"
   LIKE_OP,
   NOT_LIKE_OP,
+  IS_OP,
+  IS_NOT_OP,
   NO_OP,
 };
 
@@ -169,6 +171,7 @@ struct AttrInfoSqlNode {
   AttrType type;    ///< Type of attribute
   std::string name; ///< Attribute name
   size_t length;    ///< Length of attribute
+  bool nullable;    ///< attribute nullbale          属性是否能为NULL
 };
 
 /**

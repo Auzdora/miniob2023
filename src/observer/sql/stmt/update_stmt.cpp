@@ -44,19 +44,22 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   std::string attrName = update.attribute_name;
   const TableMeta &table_meta = table->table_meta();
   const int sys_field_num = table_meta.sys_field_num();
-  for (int i = 0; i < table_meta.field_num() - sys_field_num; i++) {
-    const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
-    if (0 == strcmp(attrName.c_str(),field_meta->name())){
+  const int cus_field_num = table_meta.custom_fields_num();
+  for (int i = 0; i < table_meta.field_num() - sys_field_num - cus_field_num; i++) {
+    const FieldMeta *field_meta = table_meta.field(i + sys_field_num + cus_field_num);
+    const AttrType field_type = field_meta->type();
+    const AttrType value_type = value->attr_type();
+    if (0 == strcmp(attrName.c_str(),field_meta->name()))
       isIn = true;
-      const AttrType field_type = field_meta->type();
-      const AttrType value_type = value->attr_type();
-      if (field_type != value_type) { // TODO try to convert the value type to field type
-        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-               table_name.c_str(), field_meta->name(), field_type, value_type);
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-      }
-      break;
+    if (table->check_value_null(*value,*field_meta)){
+      continue;
     }
+    if (field_type != value_type) { // TODO try to convert the value type to field type
+      LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
+              table_name.c_str(), field_meta->name(), field_type, value_type);
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    }
+    break;
   }
   if (!isIn){
     // value 的col 不存在

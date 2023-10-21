@@ -83,39 +83,11 @@ ComparisonExpr::~ComparisonExpr() {}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right,
                                  bool &result) const {
   RC rc = RC::SUCCESS;
-  int cmp_result = left.compare(right);
-  result = false;
-  switch (comp_) {
-  case EQUAL_TO: {
-    result = (0 == cmp_result);
-  } break;
-  case LESS_EQUAL: {
-    result = (cmp_result <= 0);
-  } break;
-  case NOT_EQUAL: {
-    result = (cmp_result != 0);
-  } break;
-  case LESS_THAN: {
-    result = (cmp_result < 0);
-  } break;
-  case GREAT_EQUAL: {
-    result = (cmp_result >= 0);
-  } break;
-  case GREAT_THAN: {
-    result = (cmp_result > 0);
-  } break;
-  case LIKE_OP: {
-    result = left.compare(right, LIKE_OP);
-  } break;
-  case NOT_LIKE_OP: {
-    result = !left.compare(right, NOT_LIKE_OP);
-  } break;
-
-  default: {
+  result = left.compare(right,comp_);
+  if (result == -1) {
     LOG_WARN("unsupported comparison. %d", comp_);
     rc = RC::INTERNAL;
-  } break;
-  }
+  } 
 
   return rc;
 }
@@ -255,7 +227,8 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
       if (right_value.get_int() == 0) {
         // NOTE:
         // 设置为整数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为整数最大值。
-        value.set_int(numeric_limits<int>::max());
+        //value.set_int(numeric_limits<int>::max());
+        value.set_null();
       } else {
         value.set_int(left_value.get_int() / right_value.get_int());
       }
@@ -264,7 +237,7 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
           right_value.get_float() < EPSILON) {
         // NOTE:
         // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
-        value.set_float(numeric_limits<float>::max());
+        value.set_null();
       } else {
         value.set_float(left_value.get_float() / right_value.get_float());
       }

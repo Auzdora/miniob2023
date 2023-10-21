@@ -72,6 +72,10 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
 
       int i = 0;
       for (const Field &field : select_stmt->query_fields()) {
+        // 过滤掉不需要显示的字段
+        // if (!field.meta()->visible())
+        //   continue; 
+
         if (with_table_name) {
           schema.append_cell(field.table_name(), field.field_name());
         } else if (with_aggregation_name) {

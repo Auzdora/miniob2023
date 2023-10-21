@@ -64,7 +64,12 @@ RC AggregationPhysicalOperator::next()
   // finish all aggregation
   for (int i = 0; i < aggr_funcs_.size(); i++) {
     if (aggr_funcs_[i] == "avg") {
-      aggr_results_[i].set_float(aggr_results_[i].get_float() / cnt);
+      if (avg_count_results_[i] == 0)
+      {
+        aggr_results_[i].set_null();                            ///< 除数为0， 结果置null
+      }else{
+        aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
+      }
     }
   }
   tuple_.set_cells(aggr_results_);
@@ -84,8 +89,8 @@ RC AggregationPhysicalOperator::do_count(int idx, Value &val)
 
 RC AggregationPhysicalOperator::do_min(int idx, Value &val)
 {
-  int ans = aggr_results_[idx].compare(val);
-  if (ans > 0) {
+  int ans = aggr_results_[idx].compare(val,GREAT_THAN);
+  if (ans) {
     aggr_results_[idx] = val;
     return RC::SUCCESS;
   }
@@ -94,8 +99,8 @@ RC AggregationPhysicalOperator::do_min(int idx, Value &val)
 
 RC AggregationPhysicalOperator::do_max(int idx, Value &val)
 {
-  int ans = aggr_results_[idx].compare(val);
-  if (ans < 0) {
+  int ans = aggr_results_[idx].compare(val,LESS_THAN);
+  if (ans) {
     aggr_results_[idx] = val;
     return RC::SUCCESS;
   }
@@ -115,49 +120,68 @@ RC AggregationPhysicalOperator::do_sum(int idx, Value &val) {
 void AggregationPhysicalOperator::do_aggregate(Tuple *tuple, int idx, bool init)
 {
   if (init) {
+    Value cell;
+    tuple->cell_at(idx, cell);
     if (aggr_funcs_[idx] == "count") {
-      aggr_results_.push_back(Value(1));
+      if (!cell.is_null())
+      {
+        aggr_results_.push_back(Value(1));
+        avg_count_results_.push_back(1);
+      } else {
+        aggr_results_.push_back(Value(0));
+        avg_count_results_.push_back(0);
+      } 
     } else if (aggr_funcs_[idx] == "count_star") {
       aggr_results_.push_back(Value(1));
+      avg_count_results_.push_back(1);
     } else if (aggr_funcs_[idx] == "min") {
-      Value cell;
-      tuple->cell_at(idx, cell);
       aggr_results_.push_back(cell);
+      avg_count_results_.push_back(1);
     } else if (aggr_funcs_[idx] == "max") {
-      Value cell;
-      tuple->cell_at(idx, cell);
       aggr_results_.push_back(cell);
+      avg_count_results_.push_back(1);
     } else if (aggr_funcs_[idx] == "sum") {
-      Value cell;
-      tuple->cell_at(idx, cell);
       aggr_results_.push_back(cell);
+      avg_count_results_.push_back(1);
     } else {  // avg
-      Value cell;
-      tuple->cell_at(idx, cell);
-      aggr_results_.push_back(cell);
+      if (!cell.is_null())
+      {
+        aggr_results_.push_back(cell);
+        avg_count_results_.push_back(1);
+      } else {
+        aggr_results_.push_back(cell);
+        avg_count_results_.push_back(0);
+      }  
     }
     return;
   }
+
+  Value cell;
+  tuple->cell_at(idx, cell);
   if (aggr_funcs_[idx] == "count") {
-    aggr_results_[idx].set_int(aggr_results_[idx].get_int() + 1);
+    if (!cell.is_null())
+    {
+      aggr_results_[idx].set_int(aggr_results_[idx].get_int() + 1);
+      avg_count_results_[idx] += 1;
+    }
   } else if (aggr_funcs_[idx] == "count_star") {
     aggr_results_[idx].set_int(aggr_results_[idx].get_int() + 1);
+    avg_count_results_[idx] += 1;
   } else if (aggr_funcs_[idx] == "min") {
-    Value cell;
-    tuple->cell_at(idx, cell);
     do_min(idx, cell);
+    avg_count_results_[idx] += 1;
   } else if (aggr_funcs_[idx] == "max") {
-    Value cell;
-    tuple->cell_at(idx, cell);
     do_max(idx, cell);
+    avg_count_results_[idx] += 1;
   } else if (aggr_funcs_[idx] == "sum") {
-    Value cell;
-    tuple->cell_at(idx, cell);
     do_sum(idx, cell);
+    avg_count_results_[idx] += 1;
   } else {  // avg
-    Value cell;
-    tuple->cell_at(idx, cell);
     do_avg(idx, cell);
+    if (!cell.is_null())
+    {
+      avg_count_results_[idx] += 1;
+    }
   }
 }
 

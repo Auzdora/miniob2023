@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table_meta.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
+#include "common/lang/bitmap.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/record/record_manager.h"
 #include "storage/common/condition_filter.h"
@@ -314,21 +315,31 @@ const TableMeta &Table::table_meta() const
 RC Table::make_record(int value_num, const Value *values, Record &record)
 {
   // 检查字段类型是否一致
-  if (value_num + table_meta_.sys_field_num() != table_meta_.field_num()) {
+  if (value_num + table_meta_.sys_field_num() + table_meta_.custom_fields_num() != table_meta_.field_num()) {
     LOG_WARN("Input values don't match the table's schema, table name:%s", table_meta_.name());
     return RC::SCHEMA_FIELD_MISSING;
   }
 
-  const int normal_field_start_index = table_meta_.sys_field_num();
+  const int custom_field_start_index = table_meta_.sys_field_num();
+  const int normal_field_start_index = table_meta_.custom_fields_num() + custom_field_start_index;
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
+    if (check_value_null(value,*field)){
+      continue;
+    }
     if (field->type() != value.attr_type()) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
   }
+
+  // 构造字段的null表
+  common::Bitmap null_bitmap;
+  char * bitmap_ptr = new char[NULL_BITMAP_SIZE];
+  memset(bitmap_ptr,0,NULL_BITMAP_SIZE);
+  null_bitmap.init(bitmap_ptr,NULL_BITMAP_SIZE);
 
   // 复制所有字段的值
   int record_size = table_meta_.record_size();
@@ -344,8 +355,20 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
         copy_len = data_len + 1;
       }
     }
+    if (value.is_null()){
+      null_bitmap.set_bit(i);
+      memset(record_data + field->offset(), 0, copy_len);
+      continue;
+    }
     memcpy(record_data + field->offset(), value.data(), copy_len);
   }
+
+   // 自定义字段 复制数据
+  for(int i = 0; i < table_meta_.custom_fields_num(); i++){
+    const FieldMeta *field = table_meta_.field(i + custom_field_start_index);
+    memcpy(record_data +field->offset(),null_bitmap.data(),field->len()); // TODO 默认只有一个自定义字段 所以拷贝数据的地址确定，如果有多个，需要重新定义
+  }
+  delete [] bitmap_ptr;
 
   record.set_data_owner(record_data, record_size);
   return RC::SUCCESS;
@@ -561,4 +584,10 @@ RC Table::sync()
   }
   LOG_INFO("Sync table over. table=%s", name());
   return rc;
+}
+
+
+bool Table::check_value_null(const Value val,const FieldMeta field) const
+{
+  return (val.is_null() && field.nullable());
 }

@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "sql/expr/expression.h"
 #include "storage/record/record.h"
+#include "common/lang/bitmap.h"
 
 class Table;
 
@@ -149,7 +150,7 @@ public:
   virtual ~RowTuple()
   {
     for (FieldExpr *spec : speces_) {
-      delete spec;
+      delete spec;     // TODO 释放到第二个出的问题
     }
     speces_.clear();
   }
@@ -157,6 +158,26 @@ public:
   void set_record(Record *record)
   {
     this->record_ = record;
+    nullable_table_.init(get_nullable_addr(),NULL_BITMAP_SIZE);
+  }
+
+  bool isNull(int i) const{
+    if (!nullable_table_.data()){
+      LOG_WARN("nullable table is not init!");
+      return true;
+    }
+    return nullable_table_.get_bit(i);
+  }
+
+  char *get_nullable_addr() const{
+    for(auto fieldmeta:*(table_->table_meta().field_metas()))
+    {
+      if (0 == strcmp(fieldmeta.name(),NULLABLE_TABLE_STRING))
+      {
+        return record_->data() + fieldmeta.offset();
+      }
+    }
+    return nullptr;
   }
 
   void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
@@ -165,6 +186,14 @@ public:
     this->speces_.reserve(fields->size());
     for (const FieldMeta &field : *fields) {
       speces_.push_back(new FieldExpr(table, &field));
+    }
+  }
+
+  void set_schema(const Table *table, const std::vector<FieldMeta> *fields,int idx){
+    table_ = table;
+    this->speces_.reserve(fields->size() - idx);
+    for (int i = idx; i < fields->size(); i++){
+      speces_.push_back(new FieldExpr(table, &(*fields)[i]));
     }
   }
 
@@ -182,6 +211,17 @@ public:
 
     FieldExpr *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
+    if (field_meta->nullable())
+    {
+      if (isNull(index))
+      {
+        cell.set_type(OBNULL);
+        return RC::SUCCESS;
+      }
+    }else if (isNull(index)){
+      LOG_WARN("this should never happen!");
+      return RC::INTERNAL;
+    }
     cell.set_type(field_meta->type());
     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
     return RC::SUCCESS;
@@ -231,6 +271,7 @@ private:
   Record *record_ = nullptr;
   const Table *table_ = nullptr;
   std::vector<FieldExpr *> speces_;
+  common::Bitmap nullable_table_;
 };
 
 /**

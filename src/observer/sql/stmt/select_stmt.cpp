@@ -41,7 +41,7 @@ static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
-  for (int i = table_meta.sys_field_num(); i < field_num; i++) {
+  for (int i = table_meta.sys_field_num() + table_meta.custom_fields_num(); i < field_num; i++) {
     field_metas.push_back(Field(table, table_meta.field(i)));
   }
 }
@@ -123,7 +123,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
         Table *table = iter->second;
         if (0 == strcmp(field_name, "*") && select_sql.aggregations.size() > 0) {
-          query_fields.push_back(Field(table, new FieldMeta("*",AttrType::AGGRSTAR, 0, 1, true)));
+          query_fields.push_back(Field(table, new FieldMeta("*",AttrType::AGGRSTAR, 0, 1,true, true))); // TODO 逻辑要理一下
         } else if (0 == strcmp(field_name, "*")) {
           wildcard_fields(table, query_fields);
         } else {

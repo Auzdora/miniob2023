@@ -49,6 +49,7 @@ public:
 
 private:
   std::vector<std::string> aggr_funcs_;
+  std::vector<int> avg_count_results_;
   std::vector<Value> aggr_results_;
   ValueListTuple tuple_;
   bool first_call_{true};

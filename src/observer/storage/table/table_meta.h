@@ -63,6 +63,9 @@ public:
 
   int record_size() const;
 
+  void custom_fields_init();
+  int custom_fields_num() const;
+
 public:
   int serialize(std::ostream &os) const override;
   int deserialize(std::istream &is) override;
@@ -75,6 +78,6 @@ protected:
   std::string name_;
   std::vector<FieldMeta> fields_;  // 包含sys_fields
   std::vector<IndexMeta> indexes_;
-
+  std::vector<std::tuple<std::string,int>> custom_fields_;  // 自定义字段 <字段名，长度>
   int record_size_ = 0;
 };

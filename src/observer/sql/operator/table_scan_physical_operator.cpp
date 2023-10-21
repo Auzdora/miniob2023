@@ -22,7 +22,8 @@ RC TableScanPhysicalOperator::open(Trx *trx)
 {
   RC rc = table_->get_record_scanner(record_scanner_, trx, readonly_);
   if (rc == RC::SUCCESS) {
-    tuple_.set_schema(table_, table_->table_meta().field_metas());
+    int user_field_idx = table_->table_meta().sys_field_num() + table_->table_meta().custom_fields_num();
+    tuple_.set_schema(table_, table_->table_meta().field_metas(),user_field_idx);
   }
   trx_ = trx;
   return rc;

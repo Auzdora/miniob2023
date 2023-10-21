@@ -25,6 +25,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/index_meta.h"
 #include "storage/field/field_meta.h"
 
+#define NULL_BITMAP_SIZE 4
+
 class Field;
 
 /**

@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 
+
 /**
  * @brief 属性的类型
  *
@@ -25,6 +26,7 @@ enum AttrType {
   CHARS,          ///< 字符串类型
   INTS,           ///< 整数类型(4字节)
   DATES,          ///< 日期类型(4字节)
+  OBNULL,         ///< NULL值
   FLOATS,         ///< 浮点数类型(4字节)
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
   AGGRSTAR,       ///< 专门用来处理count(*)的情况
@@ -51,6 +53,7 @@ public:
   explicit Value(float val);
   explicit Value(bool val);
   explicit Value(const char *s, int len = 0);
+  explicit Value(AttrType val);                            ///< for null value
 
   Value(const Value &other) = default;
   Value &operator=(const Value &other) = default;
@@ -66,12 +69,18 @@ public:
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
+  void set_null();
 
   std::string to_string() const;
 
   int compare(const Value &other) const;
 
-  bool compare(const Value &other, int op) const;
+  /**
+   * @details 返回值 -2 表示不支持的compop;返回 true/false 表示compop的结果
+   */
+  int compare(const Value &other,int op) const;
+
+  bool compare_like(const Value &other) const;
 
   const char *data() const;
   int length() const { return length_; }
@@ -88,6 +97,7 @@ public:
   float get_float() const;
   std::string get_string() const;
   bool get_boolean() const;
+  bool is_null() const;               ///< 判断当前value 是否为null
 
 private:
   AttrType attr_type_ = UNDEFINED;

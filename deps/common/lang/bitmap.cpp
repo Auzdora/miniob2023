@@ -46,6 +46,10 @@ Bitmap::Bitmap() : bitmap_(nullptr), size_(0)
 Bitmap::Bitmap(char *bitmap, int size) : bitmap_(bitmap), size_(size)
 {}
 
+Bitmap::~Bitmap(){
+  bitmap_ = nullptr;
+}
+
 void Bitmap::init(char *bitmap, int size)
 {
   bitmap_ = bitmap;
@@ -53,6 +57,12 @@ void Bitmap::init(char *bitmap, int size)
 }
 
 bool Bitmap::get_bit(int index)
+{
+  char bits = bitmap_[index / 8];
+  return (bits & (1 << (index % 8))) != 0;
+}
+
+bool Bitmap::get_bit(int index) const
 {
   char bits = bitmap_[index / 8];
   return (bits & (1 << (index % 8))) != 0;
@@ -114,6 +124,14 @@ int Bitmap::next_setted_bit(int start)
     ret = -1;
   }
   return ret;
+}
+
+const char * Bitmap::data() const{
+  return bitmap_;
+}
+
+const char * Bitmap::data(){
+  return bitmap_;
 }
 
 }  // namespace common

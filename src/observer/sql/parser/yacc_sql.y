@@ -80,6 +80,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         STRING_T
         FLOAT_T
         DATE_T
+        NULL_T
         HELP
         EXIT
         DOT //QUOTE
@@ -101,6 +102,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         GE
         NE
         LIKE
+        IS
         NOT
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
@@ -125,6 +127,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   char *                            string;
   int                               number;
   float                             floats;
+  bool                              nullable;
 }
 
 %token <number> NUMBER
@@ -156,6 +159,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <aggr_attr_list>      aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
+%type <nullable>            nullable
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -331,21 +335,37 @@ attr_def_list:
     ;
     
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE nullable
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      $$->nullable = $6;
       free($1);
     }
-    | ID type
+    | ID type nullable
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      $$->nullable = $3;
       free($1);
+    }
+    ;
+nullable:
+    /* empty 如果不指定默认字段可以为NULL （参考mysql的设计）*/
+    {
+      $$ = true;
+    }
+    |NULL_T
+    {
+      $$ = true;
+    }
+    |NOT NULL_T
+    {
+      $$ = false;
     }
     ;
 number:
@@ -409,6 +429,9 @@ value:
       if (!check) {
         return -1;
       }
+    }
+    |NULL_T {
+      $$ = new Value(AttrType::OBNULL);
     }
     ;
     
@@ -764,17 +787,6 @@ condition:
       delete $1;
       delete $3;
     }
-    |rel_attr NOT LIKE value
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$4;
-      $$->comp = NOT_LIKE_OP;
-      delete $1;
-      delete $4;
-    }
     ;
 
 comp_op:
@@ -784,7 +796,10 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
-    |LIKE {$$ = LIKE_OP;}
+    | LIKE {$$ = LIKE_OP;}
+    | NOT LIKE { $$ = NOT_LIKE_OP;}
+    | IS { $$ = IS_OP;}
+    | IS NOT { $$ = IS_NOT_OP;}
     ;
 
 load_data_stmt:

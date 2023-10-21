@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field.h"
 #include <sstream>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "null","floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type) {
   if (type >= UNDEFINED && type <= FLOATS) {
@@ -69,6 +69,8 @@ Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
+Value::Value(AttrType val) { set_type(val);}
+
 void Value::set_data(char *data, int length) {
   switch (attr_type_) {
     case CHARS: {
@@ -90,6 +92,9 @@ void Value::set_data(char *data, int length) {
       num_value_.bool_value_ = *(int *)data != 0;
       length_ = length;
     } break;
+    case OBNULL:{
+      // do nothing
+    } 
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -130,6 +135,10 @@ void Value::set_string(const char *s, int len /*= 0*/) {
   length_ = str_value_.length();
 }
 
+void Value::set_null(){
+  attr_type_ = OBNULL;
+}
+
 void Value::set_value(const Value &value) {
   switch (value.attr_type_) {
     case INTS: {
@@ -147,16 +156,23 @@ void Value::set_value(const Value &value) {
     case BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
+    case OBNULL: {
+      set_null();
+    } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
     } break;
   }
 }
-
+// TODO index_sacn_physical_operator.cpp 中index scan处理null
+// 
 const char *Value::data() const {
   switch (attr_type_) {
   case CHARS: {
     return str_value_.c_str();
+  } break;
+  case OBNULL: {
+    return nullptr;
   } break;
   default: {
     return (const char *)&num_value_;
@@ -181,6 +197,9 @@ std::string Value::to_string() const {
     } break;
     case CHARS: {
       os << str_value_;
+    } break;
+    case OBNULL: {
+      os << attr_type_to_string(OBNULL);
     } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
@@ -313,6 +332,9 @@ float Value::get_float() const
     case BOOLEANS: {
       return float(num_value_.bool_value_);
     } break;
+    case OBNULL: {
+      return 0;
+    }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;
@@ -360,6 +382,9 @@ bool Value::get_boolean() const
     case BOOLEANS: {
       return num_value_.bool_value_;
     } break;
+    case OBNULL: {
+      return false;
+    }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return false;
@@ -369,7 +394,7 @@ bool Value::get_boolean() const
 
 // like条件过滤，后面考虑改写common中去
 // other是pattern
-bool Value::compare(const Value &other, int op) const {
+bool Value::compare_like(const Value &other) const {
   int i = 0, j = 0;
   int i_len = this->str_value_.length();
   int p_len = other.str_value_.length();
@@ -397,4 +422,53 @@ bool Value::compare(const Value &other, int op) const {
   }
 
   return j == p_len;
+}
+
+int Value::compare(const Value &other,int op) const{
+  if (op != IS_OP && op != IS_NOT_OP){
+    if (this->attr_type_ == OBNULL || other.attr_type() == OBNULL)
+      return false;
+  }
+  int cmp_result = this->compare(other);
+  switch (op) {
+    case EQUAL_TO:
+      return 0 == cmp_result;
+    case LESS_EQUAL:
+      return cmp_result <= 0;
+    case NOT_EQUAL:
+      return cmp_result != 0;
+    case LESS_THAN:
+      return cmp_result < 0;
+    case GREAT_EQUAL:
+      return cmp_result >= 0;
+    case GREAT_THAN:
+      return cmp_result > 0;
+    case LIKE_OP: {
+      return this->compare_like(other);
+    } break;
+    case NOT_LIKE_OP: {
+      return !this->compare_like(other);
+    } break;
+    case IS_OP: {
+      if(this->attr_type_ == OBNULL && OBNULL == other.attr_type())
+        return true;
+      else
+        return false;
+    } break;
+    case IS_NOT_OP:{
+      if(this->attr_type_ == OBNULL && OBNULL == other.attr_type())
+        return false;
+      else if (this->attr_type_ != OBNULL && OBNULL != other.attr_type())
+        return -1;
+      else
+        return true;
+    }break;
+    default:
+      return -1;
+      break;
+  }
+}
+
+bool Value::is_null() const{
+  return (attr_type() == AttrType::OBNULL);
 }

@@ -215,7 +215,7 @@ RC LogicalPlanGenerator::create_plan(
   Table *table = delete_stmt->table();
   FilterStmt *filter_stmt = delete_stmt->filter_stmt();
   std::vector<Field> fields;
-  for (int i = table->table_meta().sys_field_num();
+  for (int i = table->table_meta().sys_field_num() + table->table_meta().custom_fields_num();
        i < table->table_meta().field_num(); i++) {
     const FieldMeta *field_meta = table->table_meta().field(i);
     fields.push_back(Field(table, field_meta));
@@ -264,9 +264,10 @@ RC LogicalPlanGenerator::create_plan(
   FilterStmt *filter_stmt = update_stmt->filter_stmt();
   int idx = 0;
   std::vector<Field> fields;
+  int usr_field_start = table->table_meta().sys_field_num() + table->table_meta().custom_fields_num();
   // 添加需要更新的field 到逻辑算子对象成员中
-  for (int i = table->table_meta().sys_field_num(); i < table->table_meta().field_num(); i++) {
-    const FieldMeta *field_meta = table->table_meta().field(i);
+  for (int i = 0; i < table->table_meta().field_num() - usr_field_start; i++) {
+    const FieldMeta *field_meta = table->table_meta().field(i + usr_field_start);
     fields.push_back(Field(table, field_meta));
     if (0 == strcmp(field_meta->name(),update_stmt->attrName().c_str())){
       idx = i;

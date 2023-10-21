@@ -32,7 +32,8 @@ TableMeta::TableMeta(const TableMeta &other)
     name_(other.name_),
     fields_(other.fields_),
     indexes_(other.indexes_),
-    record_size_(other.record_size_)
+    record_size_(other.record_size_),
+    custom_fields_(other.custom_fields_)
 {}
 
 void TableMeta::swap(TableMeta &other) noexcept
@@ -40,6 +41,7 @@ void TableMeta::swap(TableMeta &other) noexcept
   name_.swap(other.name_);
   fields_.swap(other.fields_);
   indexes_.swap(other.indexes_);
+  custom_fields_.swap(other.custom_fields_);
   std::swap(record_size_, other.record_size_);
 }
 
@@ -57,27 +59,42 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
 
   RC rc = RC::SUCCESS;
   
+  // 初始化自定义field;
+  custom_fields_init();
+
   int field_offset = 0;
   int trx_field_num = 0;
+  // 系统field 
   const vector<FieldMeta> *trx_fields = TrxKit::instance()->trx_fields();
   if (trx_fields != nullptr) {
-    fields_.resize(field_num + trx_fields->size());
+    fields_.resize(field_num + trx_fields->size() + custom_fields_.size());
 
     for (size_t i = 0; i < trx_fields->size(); i++) {
       const FieldMeta &field_meta = (*trx_fields)[i];
-      fields_[i] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), false/*visible*/);
+      fields_[i] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), field_meta.nullable(), false/*visible*/);
       field_offset += field_meta.len();
     }
 
     trx_field_num = static_cast<int>(trx_fields->size());
   } else {
-    fields_.resize(field_num);
+    fields_.resize(field_num + custom_fields_.size());
+  }
+  // 自定义field
+  for (int i = 0; i < custom_fields_.size(); i++){
+    rc = fields_[i+trx_field_num].init(std::get<0>(custom_fields_[i]).c_str(),
+            AttrType::OBNULL,field_offset,std::get<1>(custom_fields_[i]),false,false);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, std::get<0>(custom_fields_[i]).c_str());
+      return rc;
+    }
+    field_offset += std::get<1>(custom_fields_[i]);
   }
 
+  // 用户field
   for (int i = 0; i < field_num; i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
-    rc = fields_[i + trx_field_num].init(attr_info.name.c_str(), 
-            attr_info.type, field_offset, attr_info.length, true/*visible*/);
+    rc = fields_[i + trx_field_num + custom_fields_num()].init(attr_info.name.c_str(), 
+            attr_info.type, field_offset, attr_info.length, attr_info.nullable,true/*visible*/);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;
@@ -279,6 +296,7 @@ int TableMeta::deserialize(std::istream &is)
   table_id_ = table_id;
   name_.swap(table_name);
   fields_.swap(fields);
+  custom_fields_init();
   record_size_ = fields_.back().offset() + fields_.back().len() - fields_.begin()->offset();
 
   const Json::Value &indexes_value = table_value[FIELD_INDEXES];
@@ -328,4 +346,14 @@ void TableMeta::desc(std::ostream &os) const
     os << std::endl;
   }
   os << ')' << std::endl;
+}
+
+void TableMeta::custom_fields_init()
+{
+  custom_fields_.emplace_back(std::string(NULLABLE_TABLE_STRING),NULL_BITMAP_SIZE);
+}
+
+int TableMeta::custom_fields_num() const
+{
+  return custom_fields_.size();
 }
