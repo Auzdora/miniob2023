@@ -40,6 +40,8 @@ public:
 
   RC add_index(const IndexMeta &index);
 
+  RC add_multi_index(const IndexMeta &index);
+
 public:
   int32_t table_id() const { return table_id_; }
   const char *name() const;
@@ -59,7 +61,9 @@ public:
   const IndexMeta *index(const char *name) const;
   const IndexMeta *find_index_by_field(const char *field) const;
   const IndexMeta *index(int i) const;
+  const IndexMeta *multi_index(int i) const;
   int index_num() const;
+  int multi_index_num() const;
 
   int record_size() const;
 
@@ -75,6 +79,7 @@ protected:
   std::string name_;
   std::vector<FieldMeta> fields_;  // 包含sys_fields
   std::vector<IndexMeta> indexes_;
+  std::vector<IndexMeta> multi_indexes_; // 多重索引
 
   int record_size_ = 0;
 };
