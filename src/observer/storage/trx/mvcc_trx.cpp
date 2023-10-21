@@ -185,6 +185,25 @@ RC MvccTrx::delete_record(Table * table, Record &record)
   return RC::SUCCESS;
 }
 
+RC MvccTrx::update_record(Table *table, Record &old_record, Record &new_record)
+{
+    // First, "delete" or invalidate the old record
+    RC rc = delete_record(table, old_record);
+    if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to invalidate old record. rc=%s", strrc(rc));
+        return rc;
+    }
+
+    // Then, insert the new record
+    rc = insert_record(table, new_record);
+    if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to insert new record. rc=%s", strrc(rc));
+        return rc;
+    }
+
+    return RC::SUCCESS;
+}
+
 RC MvccTrx::visit_record(Table *table, Record &record, bool readonly)
 {
   Field begin_field;
