@@ -50,16 +50,18 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     const AttrType field_type = field_meta->type();
     const AttrType value_type = value->attr_type();
     if (0 == strcmp(attrName.c_str(),field_meta->name()))
+    {
       isIn = true;
-    if (table->check_value_null(*value,*field_meta)){
-      continue;
+      if (table->check_value_null(*value,*field_meta)){
+        continue;
+      }
+      if (field_type != value_type) { // TODO try to convert the value type to field type
+        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
+                table_name.c_str(), field_meta->name(), field_type, value_type);
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+      break;
     }
-    if (field_type != value_type) { // TODO try to convert the value type to field type
-      LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-              table_name.c_str(), field_meta->name(), field_type, value_type);
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-    }
-    break;
   }
   if (!isIn){
     // value 的col 不存在

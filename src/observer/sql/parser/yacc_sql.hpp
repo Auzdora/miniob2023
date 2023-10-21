@@ -131,12 +131,13 @@ union YYSTYPE
   std::vector<AggrAttrSqlNode> *    aggr_attr_list;
   std::vector<std::string> *        relation_list;
   std::vector<InnerJoinSqlNode> *   inner_join_list;
+  std::vector<std::vector<Value>> * value_lists;
   char *                            string;
   int                               number;
   float                             floats;
   bool                              nullable;
 
-#line 140 "yacc_sql.hpp"
+#line 141 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

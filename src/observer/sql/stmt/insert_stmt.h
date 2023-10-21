@@ -28,7 +28,7 @@ class InsertStmt : public Stmt
 {
 public:
   InsertStmt() = default;
-  InsertStmt(Table *table, const Value *values, int value_amount);
+  InsertStmt(Table *table, std::vector<std::vector<Value>> values, int value_amount, int values_num);
 
   StmtType type() const override
   {
@@ -43,7 +43,7 @@ public:
   {
     return table_;
   }
-  const Value *values() const
+  std::vector<std::vector<Value>> values() const
   {
     return values_;
   }
@@ -51,9 +51,14 @@ public:
   {
     return value_amount_;
   }
+  int values_num() const
+  {
+    return values_num_;
+  }
 
 private:
   Table *table_ = nullptr;
-  const Value *values_ = nullptr;
-  int value_amount_ = 0;
+  std::vector<std::vector<Value>> values_;  // 插入的多个record
+  int values_num_ = 0;                // record的个数
+  int value_amount_ = 0;              // 每个record的value的个数
 };

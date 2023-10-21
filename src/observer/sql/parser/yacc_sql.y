@@ -124,6 +124,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<AggrAttrSqlNode> *    aggr_attr_list;
   std::vector<std::string> *        relation_list;
   std::vector<InnerJoinSqlNode> *   inner_join_list;
+  std::vector<std::vector<Value>> * value_lists;
   char *                            string;
   int                               number;
   float                             floats;
@@ -149,6 +150,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
+%type <value_lists>         value_lists
 %type <condition_list>      where
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
@@ -378,33 +380,40 @@ type:
     | DATE_T   { $$=DATES; }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE 
+    INSERT INTO ID VALUES value_lists
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
-      if ($7 != nullptr) {
-        $$->insertion.values.swap(*$7);
-      }
-      $$->insertion.values.emplace_back(*$6);
-      std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
-      delete $6;
+      $$->insertion.values.swap(*$5);
+      delete $5;
       free($3);
     }
     ;
-
-value_list:
-    /* empty */
+value_lists:
+    LBRACE value_list RBRACE
     {
-      $$ = nullptr;
-    }
-    | COMMA value value_list  { 
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new std::vector<Value>;
-      }
+      $$ = new std::vector<std::vector<Value>>;
       $$->emplace_back(*$2);
       delete $2;
+    }
+    | value_lists COMMA LBRACE value_list RBRACE
+    {
+      $$ = $1;
+      $$->emplace_back(*$4);
+      delete $4;
+    }
+    ;
+value_list:
+      value
+    {
+      $$ = new std::vector<Value>;
+      $$->emplace_back(*$1);
+      delete $1;
+    }
+    | value_list COMMA value { 
+      $$ = $1;
+      $$->emplace_back(*$3);
+      delete $3;
     }
     ;
 value:
