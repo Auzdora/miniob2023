@@ -68,7 +68,10 @@ RC AggregationPhysicalOperator::next()
       {
         aggr_results_[i].set_null();                            ///< 除数为0， 结果置null
       }else{
-        aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
+        if (aggr_results_[i].is_null())
+           aggr_results_[i].set_null();
+        else
+          aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
       }
     }
   }
@@ -108,12 +111,18 @@ RC AggregationPhysicalOperator::do_max(int idx, Value &val)
 }
 
 RC AggregationPhysicalOperator::do_avg(int idx, Value &val) {
-  aggr_results_[idx].set_float(aggr_results_[idx].get_float() + val.get_float());
+  if (aggr_results_[idx].is_null() && val.is_null())
+    aggr_results_[idx].set_null();
+  else
+    aggr_results_[idx].set_float(aggr_results_[idx].get_float() + val.get_float());
   return RC::SUCCESS;
 }
 
 RC AggregationPhysicalOperator::do_sum(int idx, Value &val) {
-  aggr_results_[idx].set_float(aggr_results_[idx].get_float() + val.get_float());
+  if (aggr_results_[idx].is_null() && val.is_null())
+    aggr_results_[idx].set_null();
+  else
+    aggr_results_[idx].set_float(aggr_results_[idx].get_float() + val.get_float());
   return RC::SUCCESS;
 }
 
