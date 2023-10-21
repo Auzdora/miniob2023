@@ -149,6 +149,14 @@ const FieldMeta *TableMeta::field(const char *name) const
   return nullptr;
 }
 
+const int TableMeta::find_user_index_by_field(const char *fieldmeta) const{
+  for(auto i = 0;i < fields_.size() - sys_field_num() - custom_fields_num();i++){
+    if(0==strcmp(fields_[i+sys_field_num()+custom_fields_num()].name(),fieldmeta))
+      return i;
+  }
+  return -1;
+}
+
 const FieldMeta *TableMeta::find_field_by_offset(int offset) const
 {
   for (const FieldMeta &field : fields_) {
