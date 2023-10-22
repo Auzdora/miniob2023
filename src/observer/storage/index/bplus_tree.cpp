@@ -745,7 +745,7 @@ RC BplusTreeHandler::sync()
   return disk_buffer_pool_->flush_all_pages();
 }
 
-RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_length, int internal_max_size /* = -1*/,
+RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_length, bool is_unique, int internal_max_size /* = -1*/,
     int leaf_max_size /* = -1 */)
 {
   BufferPoolManager &bpm = BufferPoolManager::instance();
@@ -788,8 +788,14 @@ RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_
 
   char *pdata = header_frame->data();
   IndexFileHeader *file_header = (IndexFileHeader *)pdata;
+  file_header->is_unique = is_unique;
+  is_unique_ = is_unique;
   file_header->attr_length = attr_length;
+  // if (is_unique_) {
+  //   file_header->key_length = attr_length;
+  // } else {
   file_header->key_length = attr_length + sizeof(RID);
+  // }
   file_header->attr_type = attr_type;
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size = leaf_max_size;
@@ -810,7 +816,7 @@ RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_
     return RC::NOMEM;
   }
 
-  key_comparator_.init(file_header->attr_type, file_header->attr_length);
+  key_comparator_.init(file_header->attr_type, file_header->attr_length, is_unique_);
   key_printer_.init(file_header->attr_type, file_header->attr_length);
 
   this->sync();
@@ -857,7 +863,7 @@ RC BplusTreeHandler::open(const char *file_name)
   // close old page_handle
   disk_buffer_pool->unpin_page(frame);
 
-  key_comparator_.init(file_header_.attr_type, file_header_.attr_length);
+  key_comparator_.init(file_header_.attr_type, file_header_.attr_length, is_unique_);
   key_printer_.init(file_header_.attr_type, file_header_.attr_length);
   LOG_INFO("Successfully open index %s", file_name);
   return RC::SUCCESS;
@@ -1348,7 +1354,7 @@ RC BplusTreeHandler::create_new_tree(const char *key, const RID *rid)
   return rc;
 }
 
-MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const RID &rid)
+MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const RID &rid, bool mvcc_unique_update)
 {
   MemPoolItem::unique_ptr key = mem_pool_item_->alloc_unique_ptr();
   if (key == nullptr) {
@@ -1356,18 +1362,27 @@ MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const R
     return nullptr;
   }
   memcpy(static_cast<char *>(key.get()), user_key, file_header_.attr_length);
-  memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid, sizeof(rid));
+  if (!is_unique_) {
+    memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid, sizeof(rid));
+  } else {
+    if (mvcc_unique_update) {
+      memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid, sizeof(rid));
+    } else {
+      RID rid_useless{0,0};
+      memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid_useless, sizeof(rid_useless));
+    }
+  }
   return key;
 }
 
-RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
+RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid, bool mvcc_unique_update)
 {
   if (user_key == nullptr || rid == nullptr) {
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
     return RC::INVALID_ARGUMENT;
   }
 
-  MemPoolItem::unique_ptr pkey = make_key(user_key, *rid);
+  MemPoolItem::unique_ptr pkey = make_key(user_key, *rid, mvcc_unique_update);
   if (pkey == nullptr) {
     LOG_WARN("Failed to alloc memory for key.");
     return RC::NOMEM;
@@ -1396,6 +1411,9 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
 
   rc = insert_entry_into_leaf_node(latch_memo, frame, key, rid);
   if (rc != RC::SUCCESS) {
+    if (is_unique_) {
+      return RC::UNIQUE_DUPLICATE;
+    }
     LOG_TRACE("Failed to insert into leaf of index, rid:%s. rc=%s", rid->to_string().c_str(), strrc(rc));
     return rc;
   }
@@ -1618,7 +1636,7 @@ RC BplusTreeHandler::delete_entry_internal(LatchMemo &latch_memo, Frame *leaf_fr
   return coalesce_or_redistribute<LeafIndexNodeHandler>(latch_memo, leaf_frame);
 }
 
-RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
+RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid, bool mvcc_unique_update)
 {
   MemPoolItem::unique_ptr pkey = mem_pool_item_->alloc_unique_ptr();
   if (nullptr == pkey) {
@@ -1628,8 +1646,19 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
   char *key = static_cast<char *>(pkey.get());
 
   memcpy(key, user_key, file_header_.attr_length);
-  memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
-
+  // if (!is_unique_) {
+  //   memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
+  // }
+  if (!is_unique_) {
+    memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
+  } else {
+    if (mvcc_unique_update) {
+      memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
+    } else {
+      RID rid_useless{0,0};
+      memcpy(key + file_header_.attr_length, &rid_useless, sizeof(rid_useless));
+    }
+  }
   BplusTreeOperationType op = BplusTreeOperationType::DELETE;
   LatchMemo latch_memo(disk_buffer_pool_);
 

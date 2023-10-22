@@ -26,6 +26,7 @@ static const Json::StaticString FIELD_TABLE_ID("table_id");
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
 static const Json::StaticString FIELD_INDEXES("indexes");
+static const Json::StaticString FIELD_MULTI_INDEXES("multi_indexes");
 
 TableMeta::TableMeta(const TableMeta &other)
     : table_id_(other.table_id_),
@@ -42,6 +43,7 @@ void TableMeta::swap(TableMeta &other) noexcept
   fields_.swap(other.fields_);
   indexes_.swap(other.indexes_);
   custom_fields_.swap(other.custom_fields_);
+  multi_indexes_.swap(other.multi_indexes_);
   std::swap(record_size_, other.record_size_);
 }
 
@@ -114,6 +116,12 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
 RC TableMeta::add_index(const IndexMeta &index)
 {
   indexes_.push_back(index);
+  return RC::SUCCESS;
+}
+
+RC TableMeta::add_multi_index(const IndexMeta &index)
+{
+  multi_indexes_.push_back(index);
   return RC::SUCCESS;
 }
 
@@ -205,9 +213,19 @@ const IndexMeta *TableMeta::index(int i) const
   return &indexes_[i];
 }
 
+const IndexMeta *TableMeta::multi_index(int i) const
+{
+  return &multi_indexes_[i];
+}
+
 int TableMeta::index_num() const
 {
   return indexes_.size();
+}
+
+int TableMeta::multi_index_num() const
+{
+  return multi_indexes_.size();
 }
 
 int TableMeta::record_size() const
@@ -238,6 +256,15 @@ int TableMeta::serialize(std::ostream &ss) const
     indexes_value.append(std::move(index_value));
   }
   table_value[FIELD_INDEXES] = std::move(indexes_value);
+
+  // serialize multi index
+  Json::Value multi_indexes_value;
+  for (const auto &multi_index : multi_indexes_) {
+    Json::Value index_value;
+    multi_index.to_json(index_value);
+    multi_indexes_value.append(std::move(index_value));
+  }
+  table_value[FIELD_MULTI_INDEXES] = std::move(multi_indexes_value);
 
   Json::StreamWriterBuilder builder;
   Json::StreamWriter *writer = builder.newStreamWriter();
@@ -326,6 +353,27 @@ int TableMeta::deserialize(std::istream &is)
       }
     }
     indexes_.swap(indexes);
+  }
+
+  const Json::Value &multi_indexes_value = table_value[FIELD_MULTI_INDEXES];
+  if (!multi_indexes_value.empty()) {
+    if (!multi_indexes_value.isArray()) {
+      LOG_ERROR("Invalid table meta. indexes is not array, json value=%s", fields_value.toStyledString().c_str());
+      return -1;
+    }
+    const int index_num = multi_indexes_value.size();
+    std::vector<IndexMeta> indexes(index_num);
+    for (int i = 0; i < index_num; i++) {
+      IndexMeta &index = indexes[i];
+
+      const Json::Value &multi_index_value = multi_indexes_value[i];
+      rc = IndexMeta::from_json(*this, multi_index_value, index);
+      if (rc != RC::SUCCESS) {
+        LOG_ERROR("Failed to deserialize table meta. table name=%s", table_name.c_str());
+        return -1;
+      }
+    }
+    multi_indexes_.swap(indexes);
   }
 
   return (int)(is.tellg() - old_pos);

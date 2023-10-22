@@ -250,10 +250,27 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper,
 
 RC PhysicalPlanGenerator::create_plan(InsertLogicalOperator &insert_oper,
                                       unique_ptr<PhysicalOperator> &oper) {
+  vector<unique_ptr<LogicalOperator>> &child_opers = insert_oper.children();
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    LogicalOperator *child_oper = child_opers.front().get();
+    rc = create(*child_oper, child_physical_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
   Table *table = insert_oper.table();
   vector<vector<Value>> &values = insert_oper.values();
   InsertPhysicalOperator *insert_phy_oper =
       new InsertPhysicalOperator(table, std::move(values));
+  
+  if (child_physical_oper) {
+    insert_phy_oper->add_child(std::move(child_physical_oper));
+  }
   oper.reset(insert_phy_oper);
   return RC::SUCCESS;
 }

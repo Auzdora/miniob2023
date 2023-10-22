@@ -51,7 +51,7 @@ public:
    * @param record 插入的记录，当前假设记录是定长的
    * @param[out] rid    插入的记录的位置
    */
-  virtual RC insert_entry(const char *record, const RID *rid) = 0;
+  virtual RC insert_entry(const char *record, const RID *rid, bool mvcc_unique_update=false) = 0;
 
   /**
    * @brief 删除一条数据
@@ -59,7 +59,7 @@ public:
    * @param record 删除的记录，当前假设记录是定长的
    * @param[in] rid   删除的记录的位置
    */
-  virtual RC delete_entry(const char *record, const RID *rid) = 0;
+  virtual RC delete_entry(const char *record, const RID *rid, bool mvcc_unique_update=false) = 0;
 
   /**
    * @brief 创建一个索引数据的扫描器
@@ -81,11 +81,12 @@ public:
   virtual RC sync() = 0;
 
 protected:
-  RC init(const IndexMeta &index_meta, const FieldMeta &field_meta);
+  RC init(const IndexMeta &index_meta, const FieldMeta &field_meta, bool is_unique);
 
 protected:
   IndexMeta index_meta_;  ///< 索引的元数据
   FieldMeta field_meta_;  ///< 当前实现仅考虑一个字段的索引
+  bool is_unique_;        ///< 判断是否是唯一索引
 };
 
 /**

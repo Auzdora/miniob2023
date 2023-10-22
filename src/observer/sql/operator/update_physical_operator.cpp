@@ -82,6 +82,10 @@ RC UpdatePhysicalOperator::next()
     free(new_data);
   }
 
+  if (rc != RC::RECORD_EOF) {
+    return rc;
+  }
+
   return RC::RECORD_EOF;
 }
 

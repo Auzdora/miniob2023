@@ -31,8 +31,8 @@ public:
   RC open(const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta);
   RC close();
 
-  RC insert_entry(const char *record, const RID *rid) override;
-  RC delete_entry(const char *record, const RID *rid) override;
+  RC insert_entry(const char *record, const RID *rid, bool mvcc_unique_update=false) override;
+  RC delete_entry(const char *record, const RID *rid, bool mvcc_unique_update=false) override;
 
   /**
    * 扫描指定范围的数据

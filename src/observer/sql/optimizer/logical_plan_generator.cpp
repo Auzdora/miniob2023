@@ -205,6 +205,24 @@ RC LogicalPlanGenerator::create_plan(
   for (auto record:insert_stmt->values()){
     values.push_back(record);
   }
+  // vector<Value> values(insert_stmt->values(),
+  //                      insert_stmt->values() + insert_stmt->value_amount());
+  // for multi index unique
+  if (table->table_meta().multi_index_num() > 0) {
+    std::vector<Field> fields;
+    for (int i = table->table_meta().sys_field_num();
+        i < table->table_meta().field_num(); i++) {
+      const FieldMeta *field_meta = table->table_meta().field(i);
+      fields.push_back(Field(table, field_meta));
+    }
+    unique_ptr<LogicalOperator> table_get_oper(
+        new TableGetLogicalOperator(table, fields, false /*readonly*/));
+    unique_ptr<LogicalOperator> insert_oper(new InsertLogicalOperator(table, values));
+    insert_oper->add_child(std::move(table_get_oper));
+    logical_operator = std::move(insert_oper);
+    return RC::SUCCESS;
+  }
+
   InsertLogicalOperator *insert_operator =
       new InsertLogicalOperator(table, values);
   logical_operator.reset(insert_operator);

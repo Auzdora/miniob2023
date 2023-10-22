@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/insert_physical_operator.h"
+#include "sql/expr/tuple.h"
+#include "sql/expr/tuple_cell.h"
 #include "sql/stmt/insert_stmt.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
@@ -26,6 +28,71 @@ InsertPhysicalOperator::InsertPhysicalOperator(Table *table, vector<vector<Value
 RC InsertPhysicalOperator::open(Trx *trx)
 {
   RC rc = RC::SUCCESS;
+  if (table_->table_meta().multi_index_num() > 0) {
+    if (children_.size() != 1) {
+      LOG_WARN("insert for multi index operator must has one child");
+      return RC::INTERNAL;
+    }
+
+    children_[0]->open(trx);
+
+    // do scan
+    if (table_->table_meta().multi_index_num() > 0) {
+      RC rc = RC::SUCCESS;
+      PhysicalOperator *oper = children_.front().get();
+      Record record;
+      rc = table_->make_record(static_cast<int>(values_[0].size()), values_[0].data(), record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to make record. rc=%s", strrc(rc));
+        return rc;
+      }
+      RowTuple insert_tuple;
+      insert_tuple.set_record(&record);
+      insert_tuple.set_schema(table_, table_->table_meta().field_metas());
+
+      while (RC::SUCCESS == (rc = oper->next())) {
+        Tuple *tuple = oper->current_tuple();
+        if (nullptr == tuple) {
+          rc = RC::INTERNAL;
+          LOG_WARN("failed to get tuple from operator");
+          break;
+        }
+
+        int same_cnt = 0;
+        RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+        for (int i = 0; i < table_->table_meta().multi_index_num(); i++) {
+          Value cell;
+          Value insert_cell;
+          TupleCellSpec spec(table_->name(), table_->table_meta().multi_index(i)->field());
+          row_tuple->find_cell(spec, cell);
+          insert_tuple.find_cell(spec, insert_cell);
+          int result = cell.compare(insert_cell);
+          if (result == 0) {
+            same_cnt++;
+          }
+        }
+
+        if (same_cnt == table_->table_meta().multi_index_num()) {
+          return RC::INTERNAL;
+        }
+      }
+      if (rc == RC::RECORD_EOF) {
+        Record record;
+        RC rc = table_->make_record(static_cast<int>(values_[0].size()), values_[0].data(), record);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to make record. rc=%s", strrc(rc));
+          return rc;
+        }
+        rc = table_->insert_record(record);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
+        }
+        return rc;
+      }
+      return rc;
+    }
+  }
+
   std::vector<Record> succ_record;
   for(auto values:values_)
   {
@@ -38,7 +105,6 @@ RC InsertPhysicalOperator::open(Trx *trx)
       }
       return rc;
     }
-
     rc = trx->insert_record(table_, record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
@@ -59,5 +125,8 @@ RC InsertPhysicalOperator::next()
 
 RC InsertPhysicalOperator::close()
 {
+  if (table_->table_meta().multi_index_num() > 0) {
+    children_[0]->close();
+  }
   return RC::SUCCESS;
 }
