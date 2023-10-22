@@ -17,3 +17,7 @@ See the Mulan PSL v2 for more details. */
 UpdateLogicalOperator::UpdateLogicalOperator(Table *table,const Value values, Field field)
 :table_(table),value_(values),field_(field)
 {}
+
+UpdateLogicalOperator::UpdateLogicalOperator(Table *table,const std::vector<Value> &values, const std::vector<Field> &field)
+:table_(table),values_(values),fields_(field)
+{}

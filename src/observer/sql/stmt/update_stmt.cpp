@@ -16,15 +16,22 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/db/db.h"
 
+UpdateStmt::UpdateStmt(Table *table, const std::unordered_map<std::string, const Value*> &update_map, FilterStmt *filter_stmt) : table_(table), update_map_(update_map), filter_stmt_(filter_stmt)
+{}
+
+UpdateStmt::UpdateStmt(Table *table, std::vector<const Value*> values, int value_amount, FilterStmt *filter_stmt, std::vector<std::string> attr_names)
+    : table_(table), values_(values), value_amount_(value_amount),filter_stmt_(filter_stmt), attr_names_(attr_names)
+{}
+
+
 UpdateStmt::UpdateStmt(Table *table, const Value *values, int value_amount,FilterStmt *filter_stmt,std::string attr_name)
-    : table_(table), values_(values), value_amount_(value_amount),filter_stmt_(filter_stmt)
+    : table_(table), value_(values), value_amount_(value_amount),filter_stmt_(filter_stmt)
 {
   this->attr_name_.swap(attr_name);
 }
 
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 {
-  const Value *value = &(update.value);
   std::string table_name = update.relation_name;
   if (nullptr == db || table_name.empty()) {
     LOG_WARN("invalid argument. db=%p, table_name=%p", 
@@ -39,35 +46,41 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  // 检查 field 类型
-  bool isIn = false;
-  std::string attrName = update.attribute_name;
-  const TableMeta &table_meta = table->table_meta();
-  const int sys_field_num = table_meta.sys_field_num();
-  const int cus_field_num = table_meta.custom_fields_num();
-  for (int i = 0; i < table_meta.field_num() - sys_field_num - cus_field_num; i++) {
-    const FieldMeta *field_meta = table_meta.field(i + sys_field_num + cus_field_num);
-    const AttrType field_type = field_meta->type();
-    const AttrType value_type = value->attr_type();
-    if (0 == strcmp(attrName.c_str(),field_meta->name()))
-    {
-      isIn = true;
-      if (table->check_value_null(*value,*field_meta)){
-        continue;
+  std::unordered_map<std::string, const Value*> update_map;
+  // 循环检查 field 类型
+  for (const auto &[attr_name, value] : update.fields) {
+    // 检查 field 类型
+    bool isIn = false;
+    std::string attrName = attr_name;
+    const TableMeta &table_meta = table->table_meta();
+    const int sys_field_num = table_meta.sys_field_num();
+    const int cus_field_num = table_meta.custom_fields_num();
+    for (int i = 0; i < table_meta.field_num() - sys_field_num - cus_field_num; i++) {
+      const FieldMeta *field_meta = table_meta.field(i + sys_field_num + cus_field_num);
+      const AttrType field_type = field_meta->type();
+      const AttrType value_type = value.attr_type();
+      if (0 == strcmp(attrName.c_str(),field_meta->name()))
+      {
+        isIn = true;
+        if (table->check_value_null(value,*field_meta)){
+          continue;
+        }
+        if (field_type != value_type) { // TODO try to convert the value type to field type
+          LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
+                  table_name.c_str(), field_meta->name(), field_type, value_type);
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+        break;
       }
-      if (field_type != value_type) { // TODO try to convert the value type to field type
-        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-                table_name.c_str(), field_meta->name(), field_type, value_type);
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-      }
-      break;
     }
+    if (!isIn){
+      // value 的col 不存在
+      LOG_WARN("%s not in fields",attrName.c_str());
+      return RC::NOTFOUND;
+    }
+    update_map[attr_name] = &value;
   }
-  if (!isIn){
-    // value 的col 不存在
-    LOG_WARN("%s not in fields",attrName.c_str());
-    return RC::NOTFOUND;
-  }
+
   // 检查 数据是否合法  除了date 其他类型在词法解析时应该有过滤数据应该是合法的
   
   // 构建filter_stmt
@@ -82,6 +95,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return rc;
   }
 
-  stmt = new UpdateStmt(table,value,1,filter_stmt,attrName);
+  stmt = new UpdateStmt(table, update_map, filter_stmt);
   return RC::SUCCESS;
 }

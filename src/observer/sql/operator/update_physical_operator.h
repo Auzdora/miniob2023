@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/operator/physical_operator.h"
+#include <vector>
 
 
 class Trx;
@@ -28,6 +29,8 @@ class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
   UpdatePhysicalOperator(Table *table,Value value,Field field) : table_(table),value_(value),field_(field)
+  {}
+  UpdatePhysicalOperator(Table *table,const std::vector<Value> &values,const std::vector<Field> &fields) : table_(table),values_(values),fields_(fields)
   {}
 
   virtual ~UpdatePhysicalOperator() = default;
@@ -48,6 +51,8 @@ public:
 
 private:
   Table *table_ = nullptr;
+  std::vector<Value> values_;
+  std::vector<Field> fields_;
   Value value_;
   Field field_;
   Trx *trx_ = nullptr;

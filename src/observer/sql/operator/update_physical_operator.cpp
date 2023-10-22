@@ -59,19 +59,21 @@ RC UpdatePhysicalOperator::next()
     // 新record data初始化
     char * new_data = (char*) malloc(table_->table_meta().record_size());
     memset(new_data,0,table_->table_meta().record_size());
-
     // 将更新的数据覆盖到新record对应的field中
     memcpy(new_data,old_record.data(),table_->table_meta().record_size());
-    if (value_.is_null()){
-      auto field = table_->table_meta().field(NULLABLE_TABLE_STRING);
-      common::Bitmap nullable_table(old_record.data()+field->offset(),NULL_BITMAP_SIZE);
-      nullable_table.set_bit(table_->table_meta().find_user_index_by_field(field_.field_name()));
-      //  拷贝 新的null表到新record中
-      memcpy(new_data+field->offset(),nullable_table.data(),field_.meta()->len());
-      memset(new_data+field_.meta()->offset(),0,field_.meta()->len());
-    }else{
-      memcpy(new_data+field_.meta()->offset(),value_.data(),field_.meta()->len());
+    auto field = table_->table_meta().field(NULLABLE_TABLE_STRING);
+    common::Bitmap nullable_table(new_data + field->offset(),NULL_BITMAP_SIZE);
+
+    for (int i=0; i < values_.size(); i++) {
+      if (values_[i].is_null()){
+        nullable_table.set_bit(table_->table_meta().find_user_index_by_field(fields_[i].field_name()));
+        //  拷贝 新的null表到新record中
+        memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
+      } else {
+        memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
+      }
     }
+
     new_record.set_data(new_data,table_->table_meta().record_size());
 
     rc = trx_->update_record(table_, old_record,new_record);

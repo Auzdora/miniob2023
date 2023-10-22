@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 #include "logical_operator.h"
+#include "sql/parser/value.h"
+#include <vector>
 
 /**
  * @brief 更新逻辑算子
@@ -23,6 +25,8 @@ class UpdateLogicalOperator : public LogicalOperator
 {
 public:
   UpdateLogicalOperator(Table *table, const Value values, Field field);
+  UpdateLogicalOperator(Table *table, const std::vector<Value> &values, const std::vector<Field> &field);
+
   virtual ~UpdateLogicalOperator() = default;
 
   LogicalOperatorType type() const override
@@ -32,11 +36,16 @@ public:
 
   Table *table() const { return table_; }
   const Value &values() const { return value_; }
+  const std::vector<Value> &get_values() const { return values_; }
+  std::vector<Value> &get_values() { return values_; }
+  std::vector<Field> &get_field() { return fields_; }
   Value &values() { return value_; }
   Field &field() { return field_;}
 
 private:
   Table *table_ = nullptr;
   Value value_;
+  std::vector<Value> values_;
+  std::vector<Field> fields_;
   Field field_;
 };

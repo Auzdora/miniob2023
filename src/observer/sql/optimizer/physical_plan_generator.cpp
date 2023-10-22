@@ -53,6 +53,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/table_scan_physical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
+#include "storage/field/field.h"
 
 using namespace std;
 
@@ -362,8 +363,10 @@ RC PhysicalPlanGenerator::create_plan(CalcLogicalOperator &logical_oper,
 RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, std::unique_ptr<PhysicalOperator> &oper)
 {
   Table *table = update_oper.table();
-  Value &value = update_oper.values();
-  Field &field = update_oper.field();
+  std::vector<Value> &values = update_oper.get_values();
+  std::vector<Field> &fields = update_oper.get_field(); 
+  // Value &value = update_oper.values();
+  // Field &field = update_oper.field();
 
   vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
 
@@ -379,7 +382,7 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, std::u
     }
   }
 
-  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),value,field));
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),values,fields));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));

@@ -283,13 +283,18 @@ RC LogicalPlanGenerator::create_plan(
   FilterStmt *filter_stmt = update_stmt->filter_stmt();
   int idx = 0;
   std::vector<Field> fields;
+  std::vector<Value> update_values;  // multi update values
+  std::vector<Field> update_fields;  // multi update fields
+
   int usr_field_start = table->table_meta().sys_field_num() + table->table_meta().custom_fields_num();
   // 添加需要更新的field 到逻辑算子对象成员中
   for (int i = 0; i < table->table_meta().field_num() - usr_field_start; i++) {
     const FieldMeta *field_meta = table->table_meta().field(i + usr_field_start);
     fields.push_back(Field(table, field_meta));
-    if (0 == strcmp(field_meta->name(),update_stmt->attrName().c_str())){
-      idx = i;
+    auto it = update_stmt->get_update_map().find(field_meta->name());
+    if (it != update_stmt->get_update_map().end()) {
+      update_values.push_back(*(it->second));
+      update_fields.push_back(fields[i]);
     }
   }
   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, false/*readonly*/));
@@ -300,7 +305,7 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
-  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table,*update_stmt->values(),fields[idx]));
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_values, update_fields));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));
