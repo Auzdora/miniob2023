@@ -47,8 +47,8 @@ RC InsertPhysicalOperator::open(Trx *trx)
         return rc;
       }
       RowTuple insert_tuple;
-      insert_tuple.set_record(&record);
       insert_tuple.set_schema(table_, table_->table_meta().field_metas());
+      insert_tuple.set_record(&record);
 
       while (RC::SUCCESS == (rc = oper->next())) {
         Tuple *tuple = oper->current_tuple();

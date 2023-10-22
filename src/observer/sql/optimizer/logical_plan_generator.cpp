@@ -210,8 +210,9 @@ RC LogicalPlanGenerator::create_plan(
   // for multi index unique
   if (table->table_meta().multi_index_num() > 0) {
     std::vector<Field> fields;
-    for (int i = table->table_meta().sys_field_num();
-        i < table->table_meta().field_num(); i++) {
+    const TableMeta &table_meta = table->table_meta();
+    const int user_field_start_idx = table_meta.sys_field_num() + table_meta.custom_fields_num();
+    for (int i = user_field_start_idx; i < table->table_meta().field_num(); i++) {
       const FieldMeta *field_meta = table->table_meta().field(i);
       fields.push_back(Field(table, field_meta));
     }
