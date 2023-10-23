@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
+#include "sql/operator/sort_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/insert_logical_operator.h"
 #include "sql/operator/join_logical_operator.h"
@@ -28,11 +29,13 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/update_stmt.h"
 #include "storage/field/field.h"
+#include <cstring>
 #include <memory>
 #include <vector>
 #include "sql/stmt/filter_stmt.h"
@@ -152,10 +155,33 @@ RC LogicalPlanGenerator::create_plan(
       project_oper->add_child(std::move(table_oper));
     }
   }
+
   if (!all_aggr_funcs.empty()) {
     unique_ptr<LogicalOperator> aggr_oper(new AggregationLogicalOperator(all_aggr_funcs));
     aggr_oper->add_child(std::move(project_oper));
     logical_operator.swap(aggr_oper);
+    return RC::SUCCESS;
+  }
+
+  const std::vector<OrderType> &sort_types = select_stmt->sort_types();
+  const std::vector<Field> &sort_fields = select_stmt->sort_fields();
+  // compute the sort fields index on project tuple
+  std::vector<int> sort_idx;
+  for (int i = 0; i < sort_fields.size(); i++) {
+    const Field &target = sort_fields[i];
+    for (int idx = 0; idx < all_fields.size(); idx++) {
+      if (0 == strcmp(target.table_name(), all_fields[idx].table_name())
+          && 0 == strcmp(target.field_name(), all_fields[idx].field_name()))
+      {
+        sort_idx.push_back(idx);
+      }
+    }
+  }
+  // create sort operator if it has order by
+  if (!sort_fields.empty()) {
+    unique_ptr<LogicalOperator> sort_oper(new SortLogicalOperator(sort_fields, sort_types, sort_idx));
+    sort_oper->add_child(std::move(project_oper));
+    logical_operator.swap(sort_oper);
     return RC::SUCCESS;
   }
 

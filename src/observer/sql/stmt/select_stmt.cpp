@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
+#include <vector>
 
 SelectStmt::~SelectStmt()
 {
@@ -209,6 +210,34 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return rc;
   }
 
+  // collect order by information
+  std::vector<OrderType> sort_types;
+  std::vector<Field> sort_fields;
+  for (int i=0; i < select_sql.orderbys.size(); i++) {
+    const OrderBySqlNode &order_by = select_sql.orderbys[i];
+    const char *table_name = order_by.relation_name.c_str();
+    const char *field_name = order_by.attribute_name.c_str();
+    auto iter = table_map.find(table_name);
+    if (iter == table_map.end() && select_sql.relations.size() > 1) {
+      LOG_WARN("no such table in from list: %s", table_name);
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    Table *table = nullptr;
+    if (select_sql.relations.size() == 1) {
+      table = table_map.begin()->second;
+    } else {
+      table = iter->second;
+    }
+    const FieldMeta *field_meta = table->table_meta().field(field_name);
+    if (nullptr == field_meta) {
+      LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+
+    sort_fields.push_back(Field(table, field_meta));
+    sort_types.push_back(order_by.order_type);
+  }
+
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
   // TODO add expression copy
@@ -217,6 +246,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->filter_stmts_.swap(filter_stmts);
+  select_stmt->sort_fields_.swap(sort_fields);
+  select_stmt->sort_types_.swap(sort_types);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

@@ -100,6 +100,24 @@ struct InnerJoinSqlNode
   std::vector<ConditionSqlNode>   conditions;      ///< 对应的条件
 };
 
+enum OrderType
+{
+  ASC_T,
+  DESC_T,
+};
+
+/**
+ * @brief 描述一个order by语句
+ * @ingroup SQLParser
+ * @details order by的表对象和attr，以及order by顺序，默认为asc
+ */
+struct OrderBySqlNode
+{
+  std::string                      relation_name;
+  std::string                      attribute_name;
+  OrderType                        order_type;
+};
+
 /**
  * @brief 描述一个select语句
  * @ingroup SQLParser
@@ -118,6 +136,7 @@ struct SelectSqlNode
   std::vector<std::string>        relations;     ///< 查询的表
   std::vector<InnerJoinSqlNode>   innerJoins;    ///< inner join语句
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+  std::vector<OrderBySqlNode>     orderbys;      ///< order by语法支持
 };
 
 /**

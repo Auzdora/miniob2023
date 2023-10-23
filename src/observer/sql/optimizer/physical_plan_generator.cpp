@@ -44,16 +44,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/calc_physical_operator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/update_physical_operator.h"
+#include "sql/operator/sort_logical_operator.h"
+#include "sql/operator/sort_physical_operator.h"
 #include "sql/expr/expression.h"
-#include "common/log/log.h"
-#include "sql/operator/predicate_logical_operator.h"
-#include "sql/operator/predicate_physical_operator.h"
-#include "sql/operator/project_logical_operator.h"
-#include "sql/operator/project_physical_operator.h"
-#include "sql/operator/table_get_logical_operator.h"
-#include "sql/operator/table_scan_physical_operator.h"
-#include "sql/optimizer/physical_plan_generator.h"
-#include "storage/field/field.h"
 
 using namespace std;
 
@@ -108,6 +101,9 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator,
   }
   case LogicalOperatorType::AGGREGATION: {
     return create_plan(static_cast<AggregationLogicalOperator &>(logical_operator), oper);
+  } break;
+  case LogicalOperatorType::SORT: {
+    return create_plan(static_cast<SortLogicalOperator &>(logical_operator), oper);
   } break;
 
   default: {
@@ -404,6 +400,25 @@ RC PhysicalPlanGenerator::create_plan(AggregationLogicalOperator &aggr_oper, uni
   }
 
   oper = unique_ptr<PhysicalOperator>(new AggregationPhysicalOperator(std::move(aggr_oper.aggr_funcs())));
+  oper->add_child(std::move(child_phy_oper));
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(SortLogicalOperator &sort_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &children_opers = sort_oper.children();
+  ASSERT(children_opers.size() == 1, "Sort logical operator's sub oper number should be 1");
+
+  LogicalOperator &child_oper = *children_opers.front();
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+  RC rc = create(child_oper, child_phy_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create child operator of sort operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new SortPhysicalOperator(std::move(sort_oper.sort_fields()), std::move(sort_oper.sort_types()), std::move(sort_oper.sort_idx())));
   oper->add_child(std::move(child_phy_oper));
   return rc;
 }

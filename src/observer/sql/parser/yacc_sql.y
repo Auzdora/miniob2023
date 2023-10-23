@@ -105,6 +105,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         IS
         NOT
         UNIQUE
+        ORDER
+        BY
+        ASC
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -112,7 +115,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   ConditionSqlNode *                condition;
   Value *                           value;
   enum CompOp                       comp;
+  enum OrderType                    order_type;
   RelAttrSqlNode *                  rel_attr;
+  OrderBySqlNode *                  order_attr;
   AggrAttrSqlNode *                 aggr_attr;
   UpdateFieldNode *                 update_field;
   std::vector<AttrInfoSqlNode> *    attr_infos;
@@ -122,6 +127,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<Expression *> *       expression_list;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
+  std::vector<OrderBySqlNode> *     order_by_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<AggrAttrSqlNode> *    aggr_attr_list;
   std::vector<std::string> *        relation_list;
@@ -148,6 +154,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <order_type>          order_type
+%type <order_attr>          order_attr
+%type <order_by_list>       order_by_list
+%type <order_by_list>       order_by
 %type <rel_attr>            rel_attr
 %type <inner_join>          inner_join
 %type <aggr_attr>           aggr_attr
@@ -544,7 +554,7 @@ update_field:
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list innerJoin_list where
+    SELECT select_attr FROM ID rel_list innerJoin_list where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -565,6 +575,11 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($7 != nullptr) {
         $$->selection.conditions.swap(*$7);
         delete $7;
+      }
+      if ($8 != nullptr) {
+        $$->selection.orderbys.swap(*$8);
+        std::reverse($$->selection.orderbys.begin(), $$->selection.orderbys.end());
+        delete $8;
       }
       free($4);
     }
@@ -595,11 +610,63 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       free($4);
     }
+    /* | SELECT select_attr FROM ID rel_list where ORDER BY order_by_list 
+    {
+      $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($2 != nullptr) {
+        $$->selection.attributes.swap(*$2);
+        delete $2;
+      }
+      if ($5 != nullptr) {
+        $$->selection.relations.swap(*$5);
+        delete $5;
+      }
+      $$->selection.relations.push_back($4);
+      std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
+      if ($6 != nullptr) {
+        $$->selection.innerJoins.swap(*$6);
+        std::reverse($$->selection.innerJoins.begin(), $$->selection.innerJoins.end());
+        delete $6;
+      }
+      if ($9 != nullptr) {
+        $$->selection.orderbys.swap(*$9);
+        delete $9;
+      }
+      free($4);
+    } */
     | SELECT error FROM ID rel_list where
     {
       return -1;
     }
     ;
+order_by:
+    {
+      $$ = nullptr;
+    }
+    | ORDER BY order_by_list 
+    {
+      $$ = $3;
+    }
+    ;
+
+order_by_list:
+    {
+      $$ = nullptr;
+    }
+    | order_attr {
+      $$ = new std::vector<OrderBySqlNode>;
+      $$->emplace_back(*$1);
+      delete $1;
+    }
+    | order_attr COMMA order_by_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<OrderBySqlNode>;
+      }
+      $$->emplace_back(*$1);
+      delete $1;
+    }
 
 calc_stmt:
     CALC expression_list
@@ -698,6 +765,30 @@ rel_attr:
       free($3);
     }
     ;
+
+order_attr:
+    ID order_type {
+      $$ = new OrderBySqlNode;
+      $$->attribute_name = $1;
+      $$->order_type = $2;
+      free($1);
+    }
+    | ID DOT ID order_type {
+      $$ = new OrderBySqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->order_type = $4;
+      free($1);
+      free($3);
+    }
+    ;
+
+order_type:
+    {
+      $$ = ASC_T;
+    }
+    | ASC { $$ = ASC_T; }
+    | DESC { $$ = DESC_T; }
 
 aggr_attr:
     ID LBRACE '*' RBRACE {
