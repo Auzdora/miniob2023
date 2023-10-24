@@ -13,10 +13,11 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/stmt/update_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include "common/log/log.h"
 #include "storage/db/db.h"
 
-UpdateStmt::UpdateStmt(Table *table, const std::unordered_map<std::string, const Value*> &update_map, FilterStmt *filter_stmt) : table_(table), update_map_(update_map), filter_stmt_(filter_stmt)
+UpdateStmt::UpdateStmt(Table *table, const std::unordered_map<std::string, std::tuple<const Value*,bool,SelectStmt*>> &update_map, FilterStmt *filter_stmt) : table_(table), update_map_(update_map), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::UpdateStmt(Table *table, std::vector<const Value*> values, int value_amount, FilterStmt *filter_stmt, std::vector<std::string> attr_names)
@@ -46,25 +47,48 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  std::unordered_map<std::string, const Value*> update_map;
+  std::unordered_map<std::string, std::tuple<const Value*,bool,SelectStmt*>> update_map;
   // 循环检查 field 类型
-  for (const auto &[attr_name, value] : update.fields) {
+  for (const auto &[attr_name,subSelect,is_value,value] : update.fields) {
+    auto num = update_map.size();
+    Stmt *subselect_stmt = nullptr;
+    if (!is_value)
+    {
+      RC rc = SelectStmt::create(db,subSelect,subselect_stmt);
+      if(rc != RC::SUCCESS)
+      {
+        return rc;
+      }
+    }
+
     // 检查 field 类型
     bool isIn = false;
     std::string attrName = attr_name;
     const TableMeta &table_meta = table->table_meta();
     const int sys_field_num = table_meta.sys_field_num();
     const int cus_field_num = table_meta.custom_fields_num();
+
     for (int i = 0; i < table_meta.field_num() - sys_field_num - cus_field_num; i++) {
       const FieldMeta *field_meta = table_meta.field(i + sys_field_num + cus_field_num);
       const AttrType field_type = field_meta->type();
-      const AttrType value_type = value.attr_type();
+      AttrType value_type = AttrType::UNDEFINED;
+      // 获取子查询中的返回字段的field
+      if (!is_value){
+        // 判断子查询查询字段是否为单个字段
+        SelectStmt* substmt =static_cast<SelectStmt*>(subselect_stmt);
+        if (substmt->query_fields().size() != 1)
+          return RC::INTERNAL;
+        value_type = substmt->query_fields()[0].attr_type();
+      }else{
+        value_type = value.attr_type();
+      }
       if (0 == strcmp(attrName.c_str(),field_meta->name()))
       {
         isIn = true;
-        if (table->check_value_null(value,*field_meta)){
-          continue;
-        }
+        if (is_value)
+          if (table->check_value_null(value,*field_meta)){
+            continue;
+          }
         if (field_type != value_type) { // TODO try to convert the value type to field type
           LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
                   table_name.c_str(), field_meta->name(), field_type, value_type);
@@ -78,7 +102,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       LOG_WARN("%s not in fields",attrName.c_str());
       return RC::NOTFOUND;
     }
-    update_map[attr_name] = &value;
+    update_map.emplace(attr_name,std::tuple<const Value*,bool,SelectStmt*>(&value,is_value,static_cast<SelectStmt*>(subselect_stmt)));
   }
 
   // 检查 数据是否合法  除了date 其他类型在词法解析时应该有过滤数据应该是合法的

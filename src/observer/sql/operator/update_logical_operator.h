@@ -26,6 +26,7 @@ class UpdateLogicalOperator : public LogicalOperator
 public:
   UpdateLogicalOperator(Table *table, const Value values, Field field);
   UpdateLogicalOperator(Table *table, const std::vector<Value> &values, const std::vector<Field> &field);
+  UpdateLogicalOperator(Table *table, const std::vector<Value> &values, const std::vector<Field> &field, const std::unordered_map<std::string,int> subselect_map);
 
   virtual ~UpdateLogicalOperator() = default;
 
@@ -37,6 +38,7 @@ public:
   Table *table() const { return table_; }
   const Value &values() const { return value_; }
   const std::vector<Value> &get_values() const { return values_; }
+  std::unordered_map<std::string,int> &get_subselect_map() {return subselect_map_;}
   std::vector<Value> &get_values() { return values_; }
   std::vector<Field> &get_field() { return fields_; }
   Value &values() { return value_; }
@@ -47,5 +49,6 @@ private:
   Value value_;
   std::vector<Value> values_;
   std::vector<Field> fields_;
+  std::unordered_map<std::string,int> subselect_map_;
   Field field_;
 };

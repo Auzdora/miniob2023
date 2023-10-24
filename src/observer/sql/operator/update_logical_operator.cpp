@@ -21,3 +21,7 @@ UpdateLogicalOperator::UpdateLogicalOperator(Table *table,const Value values, Fi
 UpdateLogicalOperator::UpdateLogicalOperator(Table *table,const std::vector<Value> &values, const std::vector<Field> &field)
 :table_(table),values_(values),fields_(field)
 {}
+
+UpdateLogicalOperator::UpdateLogicalOperator(Table *table, const std::vector<Value> &values, const std::vector<Field> &field, const std::unordered_map<std::string,int> subselect_map)
+:table_(table),values_(values),fields_(field),subselect_map_(subselect_map)
+{}

@@ -26,11 +26,18 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   std::unique_ptr<PhysicalOperator> &child = children_[0];
-  RC rc = child->open(trx);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to open child operator: %s", strrc(rc));
-    return rc;
+  for (int i = 0; i < children_.size();i++){
+    RC rc = children_[i].get()->open(trx);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to open child operator: %s", strrc(rc));
+      return rc;
+    }
   }
+  // RC rc = child->open(trx);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_WARN("failed to open child operator: %s", strrc(rc));
+  //   return rc;
+  // }
 
   trx_ = trx;
 
@@ -64,8 +71,27 @@ RC UpdatePhysicalOperator::next()
     auto field = table_->table_meta().field(NULLABLE_TABLE_STRING);
     common::Bitmap nullable_table(new_data + field->offset(),NULL_BITMAP_SIZE);
 
-    for (int i=0; i < values_.size(); i++) {
-      if (values_[i].is_null()){
+    for (int i=0; i < fields_.size(); i++) {
+      Value taget_value;
+      auto it = subselect_map_.find(fields_[i].field_name());
+      if (it != subselect_map_.end()){
+        int idx = it->second;
+        PhysicalOperator *subselect = children_[i].get();
+        if(RC::SUCCESS == (rc = subselect->next()))
+        {
+          Tuple *tuple = child->current_tuple();
+          RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+          if (RC::SUCCESS != row_tuple->cell_at(0,taget_value))
+            return RC::INTERNAL;
+          if (RC::SUCCESS == subselect->next())
+            return RC::INTERNAL;
+        }
+
+      } else{
+        taget_value = values_[i];
+      }
+
+      if (taget_value.is_null()){
         nullable_table.set_bit(table_->table_meta().find_user_index_by_field(fields_[i].field_name()));
         //  拷贝 新的null表到新record中
         memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
