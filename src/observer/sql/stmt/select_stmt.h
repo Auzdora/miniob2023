@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 
 #include "common/rc.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
 
@@ -53,6 +54,14 @@ public:
   {
     return query_fields_;
   }
+  const std::vector<Field> &sort_fields() const
+  {
+    return sort_fields_;
+  }
+  const std::vector<OrderType> &sort_types() const
+  {
+    return sort_types_;
+  }
   FilterStmt *filter_stmt() const
   {
     return filter_stmt_;
@@ -67,6 +76,8 @@ public:
   }
 
 private:
+  std::vector<Field> sort_fields_;
+  std::vector<OrderType> sort_types_;
   std::vector<std::string> aggr_funcs_;
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
