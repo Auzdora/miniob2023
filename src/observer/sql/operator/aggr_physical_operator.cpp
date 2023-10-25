@@ -92,8 +92,8 @@ RC AggregationPhysicalOperator::do_count(int idx, Value &val)
 
 RC AggregationPhysicalOperator::do_min(int idx, Value &val)
 {
-  int ans = aggr_results_[idx].compare(val,GREAT_THAN);
-  if (ans) {
+  int ans = aggr_results_[idx].compare(val);
+  if (ans > 0) {
     aggr_results_[idx] = val;
     return RC::SUCCESS;
   }
@@ -102,8 +102,8 @@ RC AggregationPhysicalOperator::do_min(int idx, Value &val)
 
 RC AggregationPhysicalOperator::do_max(int idx, Value &val)
 {
-  int ans = aggr_results_[idx].compare(val,LESS_THAN);
-  if (ans) {
+  int ans = aggr_results_[idx].compare(val);
+  if (ans > 0) {
     aggr_results_[idx] = val;
     return RC::SUCCESS;
   }
