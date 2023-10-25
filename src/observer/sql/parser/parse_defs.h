@@ -170,6 +170,8 @@ struct DeleteSqlNode {
 
 struct UpdateFieldNode {
   std::string attribute_name; ///< 更新的字段，仅支持一个字段
+  SelectSqlNode subSelect;    ///< update-select
+  bool is_value;              ///< 是否是value的标记
   Value value;                ///< 更新的值，仅支持一个字段
 };
 

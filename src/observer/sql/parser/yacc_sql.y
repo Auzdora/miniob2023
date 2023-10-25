@@ -548,8 +548,19 @@ update_field:
     {
       $$ = new UpdateFieldNode();
       $$->attribute_name = $1;
+      $$->is_value = true;
       $$->value = *$3;
       delete $3;
+      free($1);
+    }
+    |
+    ID EQ LBRACE select_stmt RBRACE
+    {
+      $$ = new UpdateFieldNode();
+      $$->attribute_name = $1;
+      $$->is_value = false;
+      $$->subSelect = $4->selection;
+      delete $4;
       free($1);
     }
     ;

@@ -32,6 +32,9 @@ public:
   {}
   UpdatePhysicalOperator(Table *table,const std::vector<Value> &values,const std::vector<Field> &fields) : table_(table),values_(values),fields_(fields)
   {}
+  UpdatePhysicalOperator(Table *table,const std::vector<Value> &values,const std::vector<Field> &fields,std::unordered_map<std::string,int> subselect_map) 
+  : table_(table),values_(values),fields_(fields),subselect_map_(subselect_map)
+  {}
 
   virtual ~UpdatePhysicalOperator() = default;
 
@@ -53,6 +56,7 @@ private:
   Table *table_ = nullptr;
   std::vector<Value> values_;
   std::vector<Field> fields_;
+  std::unordered_map<std::string,int> subselect_map_;
   Value value_;
   Field field_;
   Trx *trx_ = nullptr;

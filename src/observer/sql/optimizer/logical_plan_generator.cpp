@@ -320,7 +320,7 @@ RC LogicalPlanGenerator::create_plan(
     fields.push_back(Field(table, field_meta));
     auto it = update_stmt->get_update_map().find(field_meta->name());
     if (it != update_stmt->get_update_map().end()) {
-      update_values.push_back(*(it->second));
+      update_values.push_back(*std::get<0>((it->second)));
       update_fields.push_back(fields[i]);
     }
   }
@@ -332,13 +332,32 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
-  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_values, update_fields));
+  std::unordered_map<std::string,int> subselect_map;
+  std::vector<unique_ptr<LogicalOperator>> subselect_opers;
+  int subselect_idx = 1;
+  for (int i = 0; i < update_fields.size(); i++){
+    auto it = update_stmt->get_update_map().find(update_fields[i].field_name());
+    if (!std::get<1>(it->second))
+    {
+      subselect_map[update_fields[i].field_name()] = subselect_idx++;
+      unique_ptr<LogicalOperator> subselect_oper;
+      auto rc = create_plan(std::get<2>(it->second), subselect_oper);
+      if (rc != RC::SUCCESS){
+        return rc;
+      }
+      subselect_opers.push_back(std::move(subselect_oper));
+    }
+  }
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_values, update_fields,subselect_map));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));
     update_oper->add_child(std::move(predicate_oper));
   } else {
     update_oper->add_child(std::move(table_get_oper));
+  }
+  for(int i = 0;i < subselect_opers.size();i++){
+    update_oper->add_child(std::move(subselect_opers[i]));
   }
 
   logical_operator = std::move(update_oper);

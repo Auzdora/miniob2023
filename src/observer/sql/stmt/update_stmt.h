@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,7 +32,7 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, const std::unordered_map<std::string, const Value*> &update_map, FilterStmt *filter_stmt);
+  UpdateStmt(Table *table, const std::unordered_map<std::string, std::tuple<const Value*,bool,SelectStmt*>> &update_map, FilterStmt *filter_stmt);
   UpdateStmt(Table *table, std::vector<const Value*> values, int value_amount, FilterStmt *filter_stmt, std::vector<std::string> attr_names);
   UpdateStmt(Table *table, const Value *values, int value_amount,FilterStmt *filter_stmt,const std::string attr_name);
   StmtType type() const override
@@ -76,7 +77,7 @@ public:
     return attr_names_;
   }
 
-  const std::unordered_map<std::string, const Value*> &get_update_map() const
+  const std::unordered_map<std::string, std::tuple<const Value*,bool,SelectStmt*>> &get_update_map() const
   {
     return update_map_;
   }
@@ -88,6 +89,6 @@ private:
   std::string attr_name_;
   std::vector<std::string> attr_names_;
   std::vector<const Value*> values_; 
-  std::unordered_map<std::string, const Value*> update_map_;
+  std::unordered_map<std::string, std::tuple<const Value*,bool,SelectStmt*>> update_map_;
   int value_amount_ = 0;
 };
