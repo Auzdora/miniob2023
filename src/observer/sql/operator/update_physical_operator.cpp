@@ -77,7 +77,7 @@ RC UpdatePhysicalOperator::next()
       auto it = subselect_map_.find(fields_[i].field_name());
       if (it != subselect_map_.end()){
         int idx = it->second;
-        PhysicalOperator *subselect = children_[i].get();
+        PhysicalOperator *subselect = children_[it->second].get();
         subselect->open(trx_);
         if(RC::SUCCESS == (rc = subselect->next()))
         {
@@ -97,6 +97,9 @@ RC UpdatePhysicalOperator::next()
       }
 
       if (taget_value.is_null()){
+        if (!fields_[i].meta()->nullable()) {
+          return RC::INTERNAL;
+        }
         nullable_table.set_bit(table_->table_meta().find_user_index_by_field(fields_[i].field_name()));
         //  拷贝 新的null表到新record中
         memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
