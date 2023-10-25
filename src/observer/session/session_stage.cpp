@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "net/server.h"
 #include "net/communicator.h"
 #include "session/session.h"
+#include "event/sql_debug.h"
 
 using namespace common;
 
@@ -137,7 +138,8 @@ RC SessionStage::handle_sql(SQLStageEvent *sql_event)
     LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
     return rc;
   }
-
+  if (sql_event->sql_node().get()->flag == SCF_INSERT || sql_event->sql_node().get()->flag == SCF_UPDATE)
+    sql_debug(sql_event->sql().c_str());
   rc = resolve_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
     LOG_TRACE("failed to do resolve. rc=%s", strrc(rc));
