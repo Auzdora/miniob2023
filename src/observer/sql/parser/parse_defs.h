@@ -46,6 +46,7 @@ struct RelAttrSqlNode {
  */
 struct AggrAttrSqlNode
 {
+  std::string relation_name;      ///< 表名
   std::string aggregation_name;   ///< aggregation name          聚合函数名
   std::string attribute_name;     ///< attribute name            属性名
 };
