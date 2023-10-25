@@ -76,6 +76,7 @@ RC UpdatePhysicalOperator::next()
       Value taget_value;
       auto it = subselect_map_.find(fields_[i].field_name());
       if (it != subselect_map_.end()){
+        int idx = it->second;
         PhysicalOperator *subselect = children_[it->second].get();
         subselect->open(trx_);
         if(RC::SUCCESS == (rc = subselect->next()))
@@ -87,7 +88,7 @@ RC UpdatePhysicalOperator::next()
           if (RC::SUCCESS == subselect->next())
             return RC::INTERNAL;
         } else {
-          return RC::INTERNAL;
+          return RC::RECORD_EOF;
         }
         values_[i] = taget_value;
         subselect->close();
