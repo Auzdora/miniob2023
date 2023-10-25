@@ -64,6 +64,7 @@ DIGIT            [0-9]+
 
 ID               [A-Za-z_]+[A-Za-z0-9_]*
 DOT              \.
+MINUS            \-
 QUOTE            [\'\"]
 %x STR
 
@@ -77,8 +78,9 @@ QUOTE            [\'\"]
 {WHITE_SAPCE}                                        // ignore whitespace
 \n                                                   ;
 
-[\-]?{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
-[\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
+{MINUS}                                 RETURN_TOKEN(MINUS);
+{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
+{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
 
 ";"                                     RETURN_TOKEN(SEMICOLON);
 {DOT}                                   RETURN_TOKEN(DOT);
@@ -140,7 +142,6 @@ ASC                                     RETURN_TOKEN(ASC);
 ">"                                     RETURN_TOKEN(GT);
 
 "+" |
-"-" |
 "*" |
 "/"                                     { return yytext[0]; }
 {QUOTE}[0-9]{4}\-([0-9]|[0-9]{2})\-([0-9]|[0-9]{2}){QUOTE}            yylval->string=strdup(yytext); RETURN_TOKEN(DATE);

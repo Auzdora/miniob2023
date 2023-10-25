@@ -29,6 +29,7 @@ struct FilterObj
   bool is_attr;
   Field field;
   Value value;
+  Expression *expr;
 
   void init_attr(const Field &field)
   {
@@ -40,6 +41,12 @@ struct FilterObj
   {
     is_attr = false;
     this->value = value;
+  }
+
+  void init_expression(Expression *expr)
+  {
+    is_attr = false;
+    this->expr = expr;
   }
 };
 
@@ -105,6 +112,9 @@ public:
       const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
   static RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+      const ConditionSqlNode &condition, FilterUnit *&filter_unit);
+  
+  static RC create_filter_unit_expr(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:

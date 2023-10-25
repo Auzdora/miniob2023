@@ -187,6 +187,9 @@ AttrType ArithmeticExpr::value_type() const {
       right_->value_type() == AttrType::INTS && arithmetic_type_ != Type::DIV) {
     return AttrType::INTS;
   }
+  if ((left_->value_type() == AttrType::OBNULL || right_->value_type() == AttrType::OBNULL)){
+    return AttrType::OBNULL;
+  }
 
   return AttrType::FLOATS;
 }
@@ -196,6 +199,7 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
   RC rc = RC::SUCCESS;
 
   const AttrType target_type = value_type();
+  value.set_type(target_type);
 
   switch (arithmetic_type_) {
   case Type::ADD: {
@@ -301,3 +305,8 @@ RC ArithmeticExpr::try_get_value(Value &value) const {
 
   return calc_value(left_value, right_value, value);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+ RC AggregationExpr::get_value(const Tuple &tuple, Value &value) const{
+  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+ }
