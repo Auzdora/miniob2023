@@ -134,3 +134,86 @@ RC NestedLoopJoinPhysicalOperator::right_next()
   joined_tuple_.set_right(right_tuple_);
   return rc;
 }
+
+BlockNestedLoopJoinPhysicalOperator::BlockNestedLoopJoinPhysicalOperator()
+    : PhysicalOperator() {}
+
+RC BlockNestedLoopJoinPhysicalOperator::open(Trx *trx) {
+    trx_ = trx;
+    RC rc = left_->open(trx);
+    if (rc != RC::SUCCESS) {
+        return rc;
+    }
+    rc = right_->open(trx);
+    if (rc != RC::SUCCESS) {
+        return rc;
+    }
+    return load_next_block();  // Load the first block upon opening
+}
+
+RC BlockNestedLoopJoinPhysicalOperator::load_next_block() {
+    left_block_.clear();
+    current_tuple_idx_ = 0;
+    RC rc = RC::SUCCESS;
+    while (left_block_.size() < BLOCK_SIZE_) {
+        rc = left_->next();
+        if (rc == RC::RECORD_EOF) {
+            break;
+        } else if (rc != RC::SUCCESS) {
+            return rc;
+        }
+        left_block_.push_back(left_->current_tuple());
+    }
+    return rc;
+}
+
+RC BlockNestedLoopJoinPhysicalOperator::left_next() {
+    if (current_tuple_idx_ < left_block_.size()) {
+        left_tuple_ = left_block_[current_tuple_idx_++];
+        joined_tuple_.set_left(left_tuple_);
+        return RC::SUCCESS;
+    } else {
+        return load_next_block();
+    }
+}
+
+RC BlockNestedLoopJoinPhysicalOperator::right_next() {
+    RC rc = right_->next();
+    if (rc != RC::SUCCESS) {
+        return rc;
+    }
+    right_tuple_ = right_->current_tuple();
+    joined_tuple_.set_right(right_tuple_);
+    return RC::SUCCESS;
+}
+
+RC BlockNestedLoopJoinPhysicalOperator::next() {
+    RC rc = RC::SUCCESS;
+    while (true) {
+        if (round_done_) {
+            rc = left_next();
+            if (rc != RC::SUCCESS) {
+                return rc;
+            }
+            round_done_ = false;
+        }
+        rc = right_next();
+        if (rc == RC::RECORD_EOF) {
+            round_done_ = true;
+            right_->close();  // Close the inner relation
+            right_->open(trx_);  // Reopen to start from the beginning
+        } else {
+            return rc;
+        }
+    }
+}
+
+RC BlockNestedLoopJoinPhysicalOperator::close() {
+    RC rc1 = left_->close();
+    RC rc2 = right_->close();
+    return (rc1 == RC::SUCCESS && rc2 == RC::SUCCESS) ? RC::SUCCESS : RC::INTERNAL;
+}
+
+Tuple* BlockNestedLoopJoinPhysicalOperator::current_tuple() {
+    return &joined_tuple_;
+}

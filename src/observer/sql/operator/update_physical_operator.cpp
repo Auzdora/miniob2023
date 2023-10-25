@@ -27,18 +27,18 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   std::unique_ptr<PhysicalOperator> &child = children_[0];
-  for (int i = 0; i < children_.size();i++){
-    RC rc = children_[i].get()->open(trx);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to open child operator: %s", strrc(rc));
-      return rc;
-    }
-  }
-  // RC rc = child->open(trx);
-  // if (rc != RC::SUCCESS) {
-  //   LOG_WARN("failed to open child operator: %s", strrc(rc));
-  //   return rc;
+  // for (int i = 0; i < children_.size();i++){
+  //   RC rc = children_[i].get()->open(trx);
+  //   if (rc != RC::SUCCESS) {
+  //     LOG_WARN("failed to open child operator: %s", strrc(rc));
+  //     return rc;
+  //   }
   // }
+  RC rc = child->open(trx);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
+    return rc;
+  }
 
   trx_ = trx;
 
@@ -87,6 +87,8 @@ RC UpdatePhysicalOperator::next()
             return RC::INTERNAL;
           if (RC::SUCCESS == subselect->next())
             return RC::INTERNAL;
+        } else {
+          return RC::INTERNAL;
         }
         values_[i] = taget_value;
         subselect->close();
