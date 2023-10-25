@@ -105,7 +105,14 @@ RC UpdatePhysicalOperator::next()
         memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
       } else {
         if (values_[i].attr_type() != fields_[i].attr_type())
-          values_[i].cast_type_to(fields_[i].attr_type());
+          if(!values_[i].cast_type_to(fields_[i].attr_type()))
+            return RC::INTERNAL;
+        if (fields_[i].attr_type() == CHARS)
+        {
+          if(values_[i].length() > fields_[i].meta()->len()){ 
+            return RC::INTERNAL;
+          }
+        }
         memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
       }
     }

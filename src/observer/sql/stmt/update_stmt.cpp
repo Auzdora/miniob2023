@@ -31,6 +31,33 @@ UpdateStmt::UpdateStmt(Table *table, const Value *values, int value_amount,Filte
   this->attr_name_.swap(attr_name);
 }
 
+// bool UpdateStmt::check_update_type(AttrType val_type, AttrType field_type){
+//   switch (field_type)
+//   {
+//   case INTS:
+//     {
+//       if (val_type != FLOATS)
+//         return false;
+//     }
+//     break;
+//   case FLOATS:
+//     {
+//       if (val_type != INTS)
+//         return false;
+//     }
+//     break;
+//   case CHARS:
+//     {
+//       if (val_type != INTS || val_type != FLOATS)
+//         return false;
+//     }
+//     break;
+//   default:
+//     return false;
+//     break;
+//   }
+// }
+
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 {
   std::string table_name = update.relation_name;
@@ -85,20 +112,18 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       if (0 == strcmp(attrName.c_str(),field_meta->name()))
       {
         isIn = true;
-        if (is_value)
-          if (table->check_value_null(value,*field_meta)){
-            continue;
-          }
-        if (field_type != value_type) {
-          if (!(field_type == AttrType::INTS && value_type == AttrType::FLOATS) &&
-              !(field_type == AttrType::FLOATS && value_type == AttrType::INTS)) 
-          {
-             // TODO try to convert the value type to field type
-              LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-                      table_name.c_str(), field_meta->name(), field_type, value_type);
-              return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-          }   
-        }
+        // if (is_value)
+        //   if (table->check_value_null(value,*field_meta)){
+        //     continue;
+        //   }
+        // if (field_type != value_type) {
+        //   {
+        //      // TODO try to convert the value type to field type
+        //       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
+        //               table_name.c_str(), field_meta->name(), field_type, value_type);
+        //       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        //   }   
+        // }
         break;
       }
     }

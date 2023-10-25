@@ -42,6 +42,7 @@ public:
 
 public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
+  static bool check_update_type(AttrType val_type, AttrType field_type);
 
 public:
   Table *table() const
