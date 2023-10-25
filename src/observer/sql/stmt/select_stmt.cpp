@@ -164,7 +164,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // collect aggregation functions in `select` statement
   // TODO: not support multi table for now
   std::vector<std::string> aggr_funcs;
-  if (select_sql.aggregations.size() >0 && select_sql.attributes.size() > 0) {
+  if (select_sql.aggregations.size() != select_sql.attributes.size()) {
     return RC::INTERNAL;
   }
   for (int i = static_cast<int>(select_sql.aggregations.size()) - 1; i >= 0; i--) {
