@@ -58,6 +58,9 @@ RC SortPhysicalOperator::next() {
       tuple_vec_.push_back(val_tuple);
     }
     first_call_ = false;
+    if (tuple_vec_.empty()) {
+      return RC::RECORD_EOF;
+    }
 
     auto comparison = [&](const ValueListTuple &t1,
                           const ValueListTuple &t2) -> bool {

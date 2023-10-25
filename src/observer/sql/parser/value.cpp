@@ -229,6 +229,9 @@ int Value::compare(const Value &other) const {
       case BOOLEANS: {
         return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
+      case OBNULL: {
+        return 0;
+      }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
@@ -240,6 +243,10 @@ int Value::compare(const Value &other) const {
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
     float other_data = other.num_value_.int_value_;
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
+  } else if (this->attr_type_ == OBNULL) {
+    return -1;
+  } else if (other.attr_type_ == OBNULL) {
+    return 1;
   } else{
     return common::compare_other(this->get_float(),other.get_float());
   }
