@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "storage/field/field.h"
+#include <cmath>
 #include <sstream>
 
 const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "null","floats", "booleans"};
@@ -478,4 +479,54 @@ int Value::compare(const Value &other,int op) const{
 
 bool Value::is_null() const{
   return (attr_type() == AttrType::OBNULL);
+}
+
+bool Value::cast_type_to(AttrType type){
+  switch (type)
+  {
+  case INTS:
+  {
+    if (this->attr_type() == CHARS)
+    {  
+      try {
+          size_t idx;
+          size_t len = this->get_string().size();
+          this->set_int((int)(std::round(std::stof(this->get_string().c_str(),&idx))));
+          return idx==len;
+      } catch (std::exception const &ex) {
+          return false;
+      }
+    }else if (this->attr_type() == FLOATS){
+      this->set_int(std::round(this->get_float()));
+      return true;
+    }else{
+      this->set_int(this->get_int());
+      return true;
+    }
+  }break;
+  case FLOATS:
+  {
+    if (this->attr_type() == CHARS)
+    { 
+      try {
+        size_t idx;
+        size_t len = this->get_string().size();
+        this->set_float(std::stof(this->get_string().c_str(),&idx));
+        return idx==len;
+      } catch (std::exception const &ex) {
+        return false;
+      }
+    }else{
+      this->set_float(this->get_float());
+      return true;
+    }
+  }break;
+  case CHARS:
+  {
+    this->set_string(this->get_string().c_str());
+    return true;
+  }
+  default:
+    break;
+  }
 }

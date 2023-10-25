@@ -84,11 +84,11 @@ RC UpdatePhysicalOperator::next()
           Tuple *update_tuple = subselect->current_tuple();
           ProjectTuple *update_row_tuple = static_cast<ProjectTuple *>(update_tuple);
           if (RC::SUCCESS != update_row_tuple->cell_at(0,taget_value))
-            return RC::INTERNAL;
+            taget_value.set_null();
           if (RC::SUCCESS == subselect->next())
             return RC::INTERNAL;
         } else {
-          return RC::INTERNAL;
+          taget_value.set_null();
         }
         values_[i] = taget_value;
         subselect->close();
@@ -104,6 +104,15 @@ RC UpdatePhysicalOperator::next()
         //  拷贝 新的null表到新record中
         memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
       } else {
+        if (values_[i].attr_type() != fields_[i].attr_type())
+          if(!values_[i].cast_type_to(fields_[i].attr_type()))
+            return RC::INTERNAL;
+        if (fields_[i].attr_type() == CHARS)
+        {
+          if(values_[i].length() > fields_[i].meta()->len()){ 
+            return RC::INTERNAL;
+          }
+        }
         memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
       }
     }

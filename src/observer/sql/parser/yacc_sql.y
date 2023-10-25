@@ -972,6 +972,15 @@ aggr_attr:
       free($1);
       free($3);
     }
+    |ID LBRACE ID DOT ID RBRACE{
+      $$ = new AggrAttrSqlNode;
+      $$->aggregation_name = $1;
+      $$->relation_name =$3;
+      $$->attribute_name =$5;
+      free($1);
+      free($3);
+      free($5);
+    }
     | ID LBRACE RBRACE {
       return -1;
     }
