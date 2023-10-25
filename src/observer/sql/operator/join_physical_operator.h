@@ -54,3 +54,38 @@ private:
   bool round_done_ = true;    //! 右表遍历的一轮是否结束
   bool right_closed_ = true;  //! 右表算子是否已经关闭
 };
+
+class BlockNestedLoopJoinPhysicalOperator : public PhysicalOperator {
+public:
+    BlockNestedLoopJoinPhysicalOperator();
+    virtual ~BlockNestedLoopJoinPhysicalOperator() = default;
+
+    PhysicalOperatorType type() const override {
+        return PhysicalOperatorType::BLOCK_NESTED_LOOP_JOIN;
+    }
+
+    RC open(Trx *trx) override;
+    RC next() override;
+    RC close() override;
+    Tuple *current_tuple() override;
+
+private:
+    RC load_next_block();
+    RC left_next();   // Load next tuple from the current block
+    RC right_next();
+
+private:
+    Trx *trx_ = nullptr;
+    PhysicalOperator *left_ = nullptr;
+    PhysicalOperator *right_ = nullptr;
+    Tuple *left_tuple_ = nullptr;
+    Tuple *right_tuple_ = nullptr;
+    JoinedTuple joined_tuple_;
+    bool round_done_ = true;
+    bool right_closed_ = true;
+
+    // New members for BNLJ
+    std::vector<Tuple*> left_block_;  // The block of tuples from the outer table
+    size_t current_tuple_idx_ = 0;    // Current tuple index in the block
+    int BLOCK_SIZE_ = 20;
+};

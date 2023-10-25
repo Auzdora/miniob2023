@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/index.h"
 #include "storage/index/bplus_tree_index.h"
 #include "storage/trx/trx.h"
+int null_cnt = -99999;
 
 Table::~Table()
 {
@@ -365,7 +366,8 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     }
     if (value.is_null()){
       null_bitmap.set_bit(i);
-      memset(record_data + field->offset(), 0, copy_len);
+      memcpy(record_data + field->offset(), &null_cnt, copy_len);
+      null_cnt++;
       continue;
     }
     memcpy(record_data + field->offset(), value.data(), copy_len);

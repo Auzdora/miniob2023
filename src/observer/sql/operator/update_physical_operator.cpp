@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "common/log/log.h"
+#include "sql/expr/tuple.h"
 #include "sql/operator/update_physical_operator.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
@@ -26,18 +27,18 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   std::unique_ptr<PhysicalOperator> &child = children_[0];
-  for (int i = 0; i < children_.size();i++){
-    RC rc = children_[i].get()->open(trx);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to open child operator: %s", strrc(rc));
-      return rc;
-    }
-  }
-  // RC rc = child->open(trx);
-  // if (rc != RC::SUCCESS) {
-  //   LOG_WARN("failed to open child operator: %s", strrc(rc));
-  //   return rc;
+  // for (int i = 0; i < children_.size();i++){
+  //   RC rc = children_[i].get()->open(trx);
+  //   if (rc != RC::SUCCESS) {
+  //     LOG_WARN("failed to open child operator: %s", strrc(rc));
+  //     return rc;
+  //   }
   // }
+  RC rc = child->open(trx);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
+    return rc;
+  }
 
   trx_ = trx;
 
@@ -77,16 +78,20 @@ RC UpdatePhysicalOperator::next()
       if (it != subselect_map_.end()){
         int idx = it->second;
         PhysicalOperator *subselect = children_[i].get();
+        subselect->open(trx_);
         if(RC::SUCCESS == (rc = subselect->next()))
         {
-          Tuple *tuple = child->current_tuple();
-          RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
-          if (RC::SUCCESS != row_tuple->cell_at(0,taget_value))
+          Tuple *update_tuple = subselect->current_tuple();
+          ProjectTuple *update_row_tuple = static_cast<ProjectTuple *>(update_tuple);
+          if (RC::SUCCESS != update_row_tuple->cell_at(0,taget_value))
             return RC::INTERNAL;
           if (RC::SUCCESS == subselect->next())
             return RC::INTERNAL;
+        } else {
+          return RC::INTERNAL;
         }
-
+        values_[i] = taget_value;
+        subselect->close();
       } else{
         taget_value = values_[i];
       }
