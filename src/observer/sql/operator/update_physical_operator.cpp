@@ -84,7 +84,7 @@ RC UpdatePhysicalOperator::next()
           Tuple *update_tuple = subselect->current_tuple();
           ProjectTuple *update_row_tuple = static_cast<ProjectTuple *>(update_tuple);
           if (RC::SUCCESS != update_row_tuple->cell_at(0,taget_value))
-            return RC::INTERNAL;
+            taget_value.set_null();
           if (RC::SUCCESS == subselect->next())
             return RC::INTERNAL;
         } else {
