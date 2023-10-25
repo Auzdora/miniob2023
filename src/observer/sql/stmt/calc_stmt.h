@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 
 #include "common/rc.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
 #include "sql/expr/expression.h"
 
@@ -43,8 +44,8 @@ public:
   static RC create(CalcSqlNode &calc_sql, Stmt *&stmt)
   {
     CalcStmt *calc_stmt = new CalcStmt();
-    for (Expression * const expr : calc_sql.expressions) {
-      calc_stmt->expressions_.emplace_back(expr);
+    for (ExprSqlNode const expr : calc_sql.expressions) {
+      calc_stmt->expressions_.emplace_back(expr.expression);
     }
     calc_sql.expressions.clear();
     stmt = calc_stmt;

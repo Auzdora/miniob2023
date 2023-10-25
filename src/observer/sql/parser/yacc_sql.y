@@ -108,23 +108,27 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         ORDER
         BY
         ASC
+        MINUS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
   Value *                           value;
+  Value *                           expr_value;
   enum CompOp                       comp;
   enum OrderType                    order_type;
   RelAttrSqlNode *                  rel_attr;
   OrderBySqlNode *                  order_attr;
   AggrAttrSqlNode *                 aggr_attr;
   UpdateFieldNode *                 update_field;
+  ExprSqlNode *                     expression;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
-  Expression *                      expression;
+  // Expression *                      expression;
   InnerJoinSqlNode *                inner_join;
-  std::vector<Expression *> *       expression_list;
+  // std::vector<Expression *> *       expression_list;
+  std::vector<ExprSqlNode> *        expression_list;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<OrderBySqlNode> *     order_by_list;
@@ -152,6 +156,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <number>              type
 %type <condition>           condition
 %type <value>               value
+%type <expr_value>          expr_value
 %type <number>              number
 %type <comp>                comp_op
 %type <order_type>          order_type
@@ -203,7 +208,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
-%left '+' '-'
+%left '+' MINUS
 %left '*' '/'
 %nonassoc UMINUS
 %%
@@ -481,6 +486,41 @@ value:
       $$ = new Value((int)$1);
       @$ = @1;
     }
+    | MINUS NUMBER {
+      $$ = new Value(-(int)$2);
+      @$ = @2;
+    }
+    |FLOAT {
+      $$ = new Value((float)$1);
+      @$ = @1;
+    }
+    |MINUS FLOAT {
+      $$ = new Value(-(float)$2);
+      @$ = @2;
+    }
+    |SSS {
+      char *tmp = common::substr($1,1,strlen($1)-2);
+      $$ = new Value(tmp);
+      free(tmp);
+    }
+    |DATE {
+      char *tmp = common::substr($1,1,strlen($1)-2);
+      bool check;
+      $$ = new Value(tmp, &check);
+      free(tmp);
+      if (!check) {
+        return -1;
+      }
+    }
+    |NULL_T {
+      $$ = new Value(AttrType::OBNULL);
+    }
+    ;
+expr_value:
+    NUMBER {
+      $$ = new Value((int)$1);
+      @$ = @1;
+    }
     |FLOAT {
       $$ = new Value((float)$1);
       @$ = @1;
@@ -565,7 +605,7 @@ update_field:
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list innerJoin_list where order_by
+    /* SELECT select_attr FROM ID rel_list innerJoin_list where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -618,6 +658,46 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($6 != nullptr) {
         $$->selection.conditions.swap(*$6);
         delete $6;
+      }
+      free($4);
+    } */
+    SELECT expression_list FROM ID rel_list innerJoin_list where order_by
+    {
+      $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($2 != nullptr) {
+        $$->selection.expressions.swap(*$2);
+        for (const auto &expr : $$->selection.expressions) {
+          for (const auto &attr : expr.attributes) {
+            $$->selection.attributes.emplace_back(attr);
+          }
+          for (const auto &aggr : expr.aggregations) {
+            $$->selection.aggregations.emplace_back(aggr);
+          }
+        }
+        for (int i=0; i < $$->selection.aggregations.size(); i++) {
+          $$->selection.attributes[i].relation_name = $4;
+        }
+        delete $2;
+      }
+      if ($5 != nullptr) {
+        $$->selection.relations.swap(*$5);
+        delete $5;
+      }
+      $$->selection.relations.push_back($4);
+      std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
+      if ($6 != nullptr) {
+        $$->selection.innerJoins.swap(*$6);
+        std::reverse($$->selection.innerJoins.begin(), $$->selection.innerJoins.end());
+        delete $6;
+      }
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
+      }
+      if ($8 != nullptr) {
+        $$->selection.orderbys.swap(*$8);
+        std::reverse($$->selection.orderbys.begin(), $$->selection.orderbys.end());
+        delete $8;
       }
       free($4);
     }
@@ -683,53 +763,127 @@ calc_stmt:
     CALC expression_list
     {
       $$ = new ParsedSqlNode(SCF_CALC);
-      std::reverse($2->begin(), $2->end());
+      // std::reverse($2->begin(), $2->end());
       $$->calc.expressions.swap(*$2);
+      std::reverse($$->calc.expressions.begin(), $$->calc.expressions.end());
       delete $2;
     }
     ;
 
 expression_list:
-    expression
+    '*'
     {
-      $$ = new std::vector<Expression*>;
-      $$->emplace_back($1);
+      $$ = new std::vector<ExprSqlNode>;
+      ExprSqlNode *expr_node = new ExprSqlNode;
+      RelAttrSqlNode *rel_node = new RelAttrSqlNode;
+      rel_node->attribute_name = "*";
+      rel_node->relation_name = "";
+      expr_node->attributes.push_back(*rel_node);
+      expr_node->expression = nullptr;
+      $$->emplace_back(*expr_node);
+      delete rel_node;
+      delete expr_node;
+    }
+    | expression
+    {
+      $$ = new std::vector<ExprSqlNode>;
+      $$->emplace_back(*$1);
     }
     | expression COMMA expression_list
     {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
-        $$ = new std::vector<Expression *>;
+        $$ = new std::vector<ExprSqlNode>;
       }
-      $$->emplace_back($1);
+      $$->emplace_back(*$1);
     }
     ;
 expression:
     expression '+' expression {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
+      $$ = new ExprSqlNode;
+      $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1->expression, $3->expression, sql_string, &@$);
+      // $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
+      $$->aggregations.swap($1->aggregations);
+      for (const auto &aggr : $3->aggregations) {
+        $$->aggregations.emplace_back(aggr);
+      }
+      $$->attributes.swap($1->attributes);
+      for (const auto &rel : $3->attributes) {
+        $$->attributes.emplace_back(rel);
+      }
     }
-    | expression '-' expression {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);
+    | expression MINUS expression {
+      $$ = new ExprSqlNode;
+      $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1->expression, $3->expression, sql_string, &@$);
+      $$->aggregations.swap($1->aggregations);
+      for (const auto &aggr : $3->aggregations) {
+        $$->aggregations.emplace_back(aggr);
+      }
+      $$->attributes.swap($1->attributes);
+      for (const auto &rel : $3->attributes) {
+        $$->attributes.emplace_back(rel);
+      }
     }
     | expression '*' expression {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);
+      $$ = new ExprSqlNode;
+      $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1->expression, $3->expression, sql_string, &@$);
+      $$->aggregations.swap($1->aggregations);
+      for (const auto &aggr : $3->aggregations) {
+        $$->aggregations.emplace_back(aggr);
+      }
+      $$->attributes.swap($1->attributes);
+      for (const auto &rel : $3->attributes) {
+        $$->attributes.emplace_back(rel);
+      }
     }
     | expression '/' expression {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
+      $$ = new ExprSqlNode;
+      $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1->expression, $3->expression, sql_string, &@$);
+      $$->aggregations.swap($1->aggregations);
+      for (const auto &aggr : $3->aggregations) {
+        $$->aggregations.emplace_back(aggr);
+      }
+      $$->attributes.swap($1->attributes);
+      for (const auto &rel : $3->attributes) {
+        $$->attributes.emplace_back(rel);
+      }
     }
     | LBRACE expression RBRACE {
       $$ = $2;
-      $$->set_name(token_name(sql_string, &@$));
+      $$->expression->set_name(token_name(sql_string, &@$));
     }
-    | '-' expression %prec UMINUS {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
+    | MINUS expression {
+      $$ = new ExprSqlNode;
+      $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2->expression, nullptr, sql_string, &@$);
+      $$->aggregations.swap($2->aggregations);
+      $$->attributes.swap($2->attributes);
     }
-    | value {
-      $$ = new ValueExpr(*$1);
-      $$->set_name(token_name(sql_string, &@$));
+    | expr_value {
+      $$ = new ExprSqlNode;
+      $$->expression = new ValueExpr(*$1);
+      $$->expression->set_name(token_name(sql_string, &@$));
       delete $1;
     }
+    | rel_attr {
+      $$ = new ExprSqlNode;
+      $$->expression = new FieldExpr($1->relation_name,$1->attribute_name);
+      $$->expression->set_name(token_name(sql_string, &@$));
+      $$->attributes.emplace_back(*$1);
+      delete $1;
+    }
+    | aggr_attr {
+      $$ = new ExprSqlNode;
+      $$->expression = new AggregationExpr($1->aggregation_name,$1->attribute_name);
+      $$->expression->set_name(token_name(sql_string, &@$));
+      $$->aggregations.emplace_back(*$1);
+      RelAttrSqlNode *rel_node = new RelAttrSqlNode;
+      rel_node->attribute_name = $1->attribute_name;
+      $$->attributes.push_back(*rel_node);
+      delete $1;
+      delete rel_node;
+    }
+    ;
     ;
 
 select_attr:
@@ -931,7 +1085,24 @@ condition_list:
     }
     ;
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
+    {
+      $$ = new ConditionSqlNode;
+      $$->comp = $2;
+      $$->left_expr_node = *$1;
+      if ($1->attributes.size() > 0) {
+        $$->left_is_attr = 1;
+      } else {
+        $$->left_is_attr = 0;
+      }
+      $$->right_expr_node = *$3;
+      if ($3->attributes.size() > 0) {
+        $$->right_is_attr = 1;
+      } else {
+        $$->right_is_attr = 0;
+      }
+    }
+    /* rel_attr comp_op value
     {
       $$ = new ConditionSqlNode;
       $$->left_is_attr = 1;
@@ -978,7 +1149,7 @@ condition:
 
       delete $1;
       delete $3;
-    }
+    } */
     ;
 
 comp_op:

@@ -43,6 +43,7 @@ enum class ExprType
   COMPARISON,   ///< 需要做比较的表达式
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
+  AGGREGATION,  ///< 聚合函数
 };
 
 /**
@@ -109,6 +110,11 @@ public:
   FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field)
   {}
   FieldExpr(const Field &field) : field_(field)
+  {
+    table_name_ = field.table_name();
+    field_name_ = field.field_name();
+  }
+  FieldExpr(const std::string table_name,const std::string field_name) : table_name_(table_name), field_name_(field_name)
   {}
 
   virtual ~FieldExpr() = default;
@@ -120,14 +126,20 @@ public:
 
   const Field &field() const { return field_; }
 
-  const char *table_name() const { return field_.table_name(); }
+  void init_field(const Field &field){
+    field_ = field;
+  }
 
-  const char *field_name() const { return field_.field_name(); }
+  const char *table_name() const { return table_name_.c_str(); }
+
+  const char *field_name() const { return field_name_.c_str(); }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
 private:
   Field field_;
+  std::string table_name_;            // for expression parser
+  std::string field_name_;            // for expression parser
 };
 
 /**
@@ -299,4 +311,31 @@ private:
   Type arithmetic_type_;
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
+};
+
+/**
+ * @brief 聚合函数表达式
+ * @ingroup Expression
+ */
+class AggregationExpr : public Expression 
+{
+public:
+  AggregationExpr() = default;
+  AggregationExpr(const std::string table_name,const std::string field_name) : table_name_(table_name), field_name_(field_name)
+  {}
+
+  virtual ~AggregationExpr() = default;
+
+  ExprType type() const override { return ExprType::AGGREGATION; }
+  AttrType value_type() const override { return AttrType::UNDEFINED; }
+
+  const char *table_name() const { return table_name_.c_str(); }
+
+  const char *field_name() const { return field_name_.c_str(); }
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+private:
+  std::string table_name_;            // for expression parser
+  std::string field_name_;            // for expression parser
 };

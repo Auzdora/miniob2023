@@ -70,6 +70,18 @@ enum CompOp {
 };
 
 /**
+ * @brief 描述一个expression语句
+ * @ingroup SQLParser
+ * @details expression是一种集合体，可包含aggregation value以及attr等等，甚至可以是子查询
+ */
+struct ExprSqlNode
+{
+  Expression *                      expression;
+  std::vector<AggrAttrSqlNode>      aggregations;
+  std::vector<RelAttrSqlNode>       attributes;
+};
+
+/**
  * @brief 表示一个条件比较
  * @ingroup SQLParser
  * @details 条件比较就是SQL查询中的 where a>b 这种。
@@ -88,6 +100,8 @@ struct ConditionSqlNode {
   RelAttrSqlNode right_attr; ///< right-hand side attribute if right_is_attr =
                              ///< TRUE 右边的属性
   Value right_value;         ///< right-hand side value if right_is_attr = FALSE
+  ExprSqlNode left_expr_node;
+  ExprSqlNode right_expr_node;
 };
 
 /**
@@ -138,6 +152,7 @@ struct SelectSqlNode
   std::vector<InnerJoinSqlNode>   innerJoins;    ///< inner join语句
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
   std::vector<OrderBySqlNode>     orderbys;      ///< order by语法支持
+  std::vector<ExprSqlNode>        expressions;   ///< 支持exression表达式
 };
 
 /**
@@ -145,7 +160,7 @@ struct SelectSqlNode
  * @ingroup SQLParser
  */
 struct CalcSqlNode {
-  std::vector<Expression *> expressions; ///< calc clause
+  std::vector<ExprSqlNode> expressions; ///< calc clause
 
   ~CalcSqlNode();
 };

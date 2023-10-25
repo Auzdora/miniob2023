@@ -29,7 +29,7 @@ RC AggregationPhysicalOperator::open(Trx *trx)
     LOG_WARN("aggregation operator must has one child");
     return RC::INTERNAL;
   }
-  first_loop = true;
+  first_call_ = true;
   return children_[0]->open(trx);
 }
 
