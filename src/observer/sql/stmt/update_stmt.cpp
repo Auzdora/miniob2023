@@ -89,10 +89,15 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
           if (table->check_value_null(value,*field_meta)){
             continue;
           }
-        if (field_type != value_type) { // TODO try to convert the value type to field type
-          LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
-                  table_name.c_str(), field_meta->name(), field_type, value_type);
-          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        if (field_type != value_type) {
+          if (!(field_type == AttrType::INTS && value_type == AttrType::FLOATS) &&
+              !(field_type == AttrType::FLOATS && value_type == AttrType::INTS)) 
+          {
+             // TODO try to convert the value type to field type
+              LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d", 
+                      table_name.c_str(), field_meta->name(), field_type, value_type);
+              return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+          }   
         }
         break;
       }

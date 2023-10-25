@@ -479,3 +479,19 @@ int Value::compare(const Value &other,int op) const{
 bool Value::is_null() const{
   return (attr_type() == AttrType::OBNULL);
 }
+
+void Value::cast_type_to(AttrType type){
+  switch (type)
+  {
+  case INTS:
+  {
+    this->set_int(this->get_int());
+  }break;
+  case FLOATS:
+  {
+    this->set_float(this->get_float());
+  }break;
+  default:
+    break;
+  }
+}

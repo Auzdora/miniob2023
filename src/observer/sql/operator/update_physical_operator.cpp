@@ -88,7 +88,7 @@ RC UpdatePhysicalOperator::next()
           if (RC::SUCCESS == subselect->next())
             return RC::INTERNAL;
         } else {
-          return RC::RECORD_EOF;
+          taget_value.set_null();
         }
         values_[i] = taget_value;
         subselect->close();
@@ -104,6 +104,8 @@ RC UpdatePhysicalOperator::next()
         //  拷贝 新的null表到新record中
         memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
       } else {
+        if (values_[i].attr_type() != fields_[i].attr_type())
+          values_[i].cast_type_to(fields_[i].attr_type());
         memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
       }
     }
