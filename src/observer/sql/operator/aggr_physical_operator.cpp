@@ -29,7 +29,7 @@ RC AggregationPhysicalOperator::open(Trx *trx)
     LOG_WARN("aggregation operator must has one child");
     return RC::INTERNAL;
   }
-
+  first_loop = true;
   return children_[0]->open(trx);
 }
 
@@ -64,14 +64,15 @@ RC AggregationPhysicalOperator::next()
   // finish all aggregation
   for (int i = 0; i < aggr_funcs_.size(); i++) {
     if (aggr_funcs_[i] == "avg") {
-      if (avg_count_results_[i] == 0)
+      if (!avg_count_results_.empty())
       {
-        aggr_results_[i].set_null();                            ///< 除数为0， 结果置null
-      }else{
         if (aggr_results_[i].is_null())
-           aggr_results_[i].set_null();
+          aggr_results_[i].set_null();
         else
           aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
+      }
+      else{
+        aggr_results_[i].set_null();
       }
     }
   }
