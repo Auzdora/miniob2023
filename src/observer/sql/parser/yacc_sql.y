@@ -1090,16 +1090,36 @@ condition:
       $$ = new ConditionSqlNode;
       $$->comp = $2;
       $$->left_expr_node = *$1;
-      if ($1->attributes.size() > 0) {
-        $$->left_is_attr = 1;
-      } else {
-        $$->left_is_attr = 0;
+      // left
+      switch ($1->expression->type()) {
+        case ExprType::FIELD: {
+          $$->left_con_type = ConditionType::CON_ATTR_T;
+        } break;
+        case ExprType::VALUE: {
+          $$->left_con_type = ConditionType::CON_VALUE_T;
+        } break;
+        case ExprType::ARITHMETIC: {
+          $$->left_con_type = ConditionType::CON_CALC_T;
+        } break;
+        default: {
+          return -1;
+        } break;
       }
+      // right
       $$->right_expr_node = *$3;
-      if ($3->attributes.size() > 0) {
-        $$->right_is_attr = 1;
-      } else {
-        $$->right_is_attr = 0;
+      switch ($3->expression->type()) {
+        case ExprType::FIELD: {
+          $$->right_con_type = ConditionType::CON_ATTR_T;
+        } break;
+        case ExprType::VALUE: {
+          $$->right_con_type = ConditionType::CON_VALUE_T;
+        } break;
+        case ExprType::ARITHMETIC: {
+          $$->right_con_type = ConditionType::CON_CALC_T;
+        } break;
+        default: {
+          return -1;
+        } break;
       }
     }
     /* rel_attr comp_op value

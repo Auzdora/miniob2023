@@ -18,9 +18,11 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <string>
 
+#include "storage/db/db.h"
 #include "storage/field/field.h"
 #include "sql/parser/value.h"
 #include "common/log/log.h"
+#include "storage/field/field_meta.h"
 
 class Tuple;
 
@@ -62,6 +64,8 @@ class Expression
 public:
   Expression() = default;
   virtual ~Expression() = default;
+
+  virtual void init(Db *db, Table *default_table) = 0;
 
   /**
    * @brief 根据具体的tuple，来计算当前表达式的值。tuple有可能是一个具体某个表的行数据
@@ -109,6 +113,25 @@ public:
   FieldExpr() = default;
   FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field)
   {}
+
+  void init(Db *db, Table *default_table) override {
+    if (table_name_.empty()) {
+      const FieldMeta *field_meta = default_table->table_meta().field(field_name_.c_str());
+      field_.set_table(default_table);
+      field_.set_field(field_meta);
+      table_name_ = default_table->name();
+      field_name_ = field_meta->name();
+      return;
+    }
+
+    Table *new_table = db->find_table(table_name_.c_str());
+    const FieldMeta *field_meta = new_table->table_meta().field(field_name_.c_str());
+    field_.set_table(new_table);
+    field_.set_field(field_meta);
+    table_name_ = new_table->name();
+    field_name_ = field_meta->name();
+  }
+
   FieldExpr(const Field &field) : field_(field)
   {
     table_name_ = field.table_name();
@@ -155,6 +178,10 @@ public:
 
   virtual ~ValueExpr() = default;
 
+  void init(Db *db, Table *default_table) override {
+    return;
+  }
+
   RC get_value(const Tuple &tuple, Value &value) const override;
   RC try_get_value(Value &value) const override { value = value_; return RC::SUCCESS; }
 
@@ -179,6 +206,10 @@ class CastExpr : public Expression
 public:
   CastExpr(std::unique_ptr<Expression> child, AttrType cast_type);
   virtual ~CastExpr();
+
+  void init(Db *db, Table *default_table) override {
+    return;
+  }
 
   ExprType type() const override
   {
@@ -209,6 +240,11 @@ class ComparisonExpr : public Expression
 public:
   ComparisonExpr(CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
   virtual ~ComparisonExpr();
+
+  void init(Db *db, Table *default_table) override {
+    left_->init(db, default_table);
+    right_->init(db, default_table);
+  }
 
   ExprType type() const override { return ExprType::COMPARISON; }
 
@@ -257,6 +293,12 @@ public:
   ConjunctionExpr(Type type, std::vector<std::unique_ptr<Expression>> &children);
   virtual ~ConjunctionExpr() = default;
 
+  void init(Db *db, Table *default_table) override {
+    for (const auto &child : children_) {
+      child->init(db, default_table);
+    }
+  }
+
   ExprType type() const override { return ExprType::CONJUNCTION; }
 
   AttrType value_type() const override { return BOOLEANS; }
@@ -292,6 +334,15 @@ public:
   ArithmeticExpr(Type type, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
   virtual ~ArithmeticExpr() = default;
 
+  void init(Db *db, Table *default_table) override {
+    left_->init(db, default_table);
+    if (arithmetic_type_ != Type::NEGATIVE) {
+      right_->init(db, default_table);
+    } else {
+      right_.reset(new ValueExpr(Value(0)));
+    }
+  }
+
   ExprType type() const override { return ExprType::ARITHMETIC; }
 
   AttrType value_type() const override;
@@ -323,6 +374,10 @@ public:
   AggregationExpr() = default;
   AggregationExpr(const std::string table_name,const std::string field_name) : table_name_(table_name), field_name_(field_name)
   {}
+
+  void init(Db *db, Table *default_table) override {
+    return;
+  }
 
   virtual ~AggregationExpr() = default;
 

@@ -24,28 +24,35 @@ class Db;
 class Table;
 class FieldMeta;
 
+enum FilterObjType
+{
+  FIELD,
+  VALUE,
+  CALC,
+};
 struct FilterObj 
 {
-  bool is_attr;
+  // bool is_attr;
+  FilterObjType type;
   Field field;
   Value value;
   Expression *expr;
 
   void init_attr(const Field &field)
   {
-    is_attr = true;
+    type = FilterObjType::FIELD;
     this->field = field;
   }
 
   void init_value(const Value &value)
   {
-    is_attr = false;
+    type = FilterObjType::VALUE;
     this->value = value;
   }
 
   void init_expression(Expression *expr)
   {
-    is_attr = false;
+    type = FilterObjType::CALC;
     this->expr = expr;
   }
 };
@@ -116,7 +123,10 @@ public:
   
   static RC create_filter_unit_expr(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
-
+  
+  static RC Init_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+    const ConditionSqlNode &condition, FilterUnit *&filter_unit);
+  
 private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
 };

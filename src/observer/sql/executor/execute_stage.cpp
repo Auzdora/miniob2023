@@ -70,20 +70,26 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       bool with_table_name = select_stmt->tables().size() > 1;
       bool with_aggregation_name = select_stmt->aggr_funcs().size() > 0;
 
-      int i = 0;
-      for (const Field &field : select_stmt->query_fields()) {
-        // 过滤掉不需要显示的字段
-        // if (!field.meta()->visible())
-        //   continue; 
-
-        if (with_table_name) {
-          schema.append_cell(field.table_name(), field.field_name());
-        } else if (with_aggregation_name) {
-          schema.append_cell(field.table_name(), field.field_name(), select_stmt->aggr_funcs()[i].c_str());
-        } else {
-          schema.append_cell(field.field_name());
+      if (!select_stmt->query_expressions().empty()) {
+        for (int i = select_stmt->query_expressions().size()-1; i >= 0; i--) {
+          schema.append_cell(select_stmt->query_expressions()[i]->name().c_str());
         }
-        i++;
+      } else {
+        int i = 0;
+        for (const Field &field : select_stmt->query_fields()) {
+          // 过滤掉不需要显示的字段
+          // if (!field.meta()->visible())
+          //   continue; 
+
+          if (with_table_name) {
+            schema.append_cell(field.table_name(), field.field_name());
+          } else if (with_aggregation_name) {
+            schema.append_cell(field.table_name(), field.field_name(), select_stmt->aggr_funcs()[i].c_str());
+          } else {
+            schema.append_cell(field.field_name());
+          }
+          i++;
+        }
       }
     } break;
 

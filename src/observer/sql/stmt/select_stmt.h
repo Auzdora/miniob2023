@@ -74,6 +74,10 @@ public:
   {
     return aggr_funcs_;
   }
+  const std::vector<Expression *> &query_expressions() const
+  {
+    return query_expressions_;
+  }
 
 private:
   std::vector<Field> sort_fields_;
@@ -83,4 +87,5 @@ private:
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
   std::vector<FilterStmt *> filter_stmts_;   // 多个filter for join 或者其他筛选
+  std::vector<Expression *> query_expressions_;
 };

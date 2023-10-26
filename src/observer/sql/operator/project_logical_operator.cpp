@@ -16,3 +16,10 @@ See the Mulan PSL v2 for more details. */
 
 ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields) : fields_(fields)
 {}
+
+ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields, const std::vector<Expression *> &exprs) : fields_(fields)
+{
+  for (Expression* expr : exprs) {
+    expressions_.emplace_back(expr);
+  }
+}

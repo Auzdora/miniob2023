@@ -13,9 +13,12 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "common/log/log.h"
+#include "sql/expr/tuple.h"
 #include "sql/operator/project_physical_operator.h"
+#include "sql/parser/value.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
+#include <vector>
 
 RC ProjectPhysicalOperator::open(Trx *trx)
 {
@@ -38,7 +41,32 @@ RC ProjectPhysicalOperator::next()
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
-  return children_[0]->next();
+  if (expressions_.empty()) {
+    return children_[0]->next();
+  }
+
+  // do expression
+  RC rc = RC::SUCCESS;
+  if (RC::SUCCESS == children_[0]->next()) {
+    Tuple *tuple = children_[0]->current_tuple();
+    std::vector<Value> cells;
+    Value cell;
+    for (const auto &expr : expressions_) {
+      rc = expr->get_value(*tuple, cell);
+      if (rc != RC::SUCCESS) {
+        LOG_INFO("project expression operator get value error");
+        return RC::INTERNAL;
+      }
+      cells.push_back(cell);
+    }
+    std::reverse(cells.begin(), cells.end());
+
+    val_tuple_.set_cells(cells);
+  } else {
+    return RC::RECORD_EOF;
+  }
+
+  return rc;
 }
 
 RC ProjectPhysicalOperator::close()
@@ -50,8 +78,11 @@ RC ProjectPhysicalOperator::close()
 }
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
-  tuple_.set_tuple(children_[0]->current_tuple());
-  return &tuple_;
+  if (expressions_.empty()) {
+    tuple_.set_tuple(children_[0]->current_tuple());
+    return &tuple_;
+  }
+  return&val_tuple_;
 }
 
 void ProjectPhysicalOperator::add_projection(const Table *table, const FieldMeta *field_meta)

@@ -69,6 +69,13 @@ enum CompOp {
   NO_OP,
 };
 
+enum ConditionType{
+  CON_VALUE_T,
+  CON_ATTR_T,
+  CON_SUBSELECT_T,
+  CON_CALC_T,
+};
+
 /**
  * @brief 描述一个expression语句
  * @ingroup SQLParser
@@ -102,6 +109,8 @@ struct ConditionSqlNode {
   Value right_value;         ///< right-hand side value if right_is_attr = FALSE
   ExprSqlNode left_expr_node;
   ExprSqlNode right_expr_node;
+  ConditionType left_con_type;
+  ConditionType right_con_type;
 };
 
 /**

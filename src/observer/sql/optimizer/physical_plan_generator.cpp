@@ -234,6 +234,9 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper,
   for (const Field &field : project_fields) {
     project_operator->add_projection(field.table(), field.meta());
   }
+  if (!project_oper.expressions().empty()) {
+    project_operator->add_expressions(std::move(project_oper.expressions()));
+  }
 
   if (child_phy_oper) {
     project_operator->add_child(std::move(child_phy_oper));

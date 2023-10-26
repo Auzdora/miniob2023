@@ -243,6 +243,17 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     sort_types.push_back(order_by.order_type);
   }
 
+  // collect query expressions information
+  std::vector<Expression *> query_expressions;
+  for (int i=0; i < select_sql.expressions.size(); i++) {
+    Expression *expr = select_sql.expressions[i].expression;
+    if (expr == nullptr) {
+      continue;
+    }
+    expr->init(db, default_table);
+    query_expressions.push_back(expr);
+  }
+
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
   // TODO add expression copy
@@ -253,6 +264,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->filter_stmts_.swap(filter_stmts);
   select_stmt->sort_fields_.swap(sort_fields);
   select_stmt->sort_types_.swap(sort_types);
+  select_stmt->query_expressions_.swap(query_expressions);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

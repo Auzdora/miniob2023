@@ -14,7 +14,9 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/expr/expression.h"
 #include "sql/operator/physical_operator.h"
+#include <memory>
 
 /**
  * @brief 选择/投影物理算子
@@ -30,7 +32,7 @@ public:
 
   void add_expressions(std::vector<std::unique_ptr<Expression>> &&expressions)
   {
-    
+    expressions_ = std::move(expressions);
   }
   void add_projection(const Table *table, const FieldMeta *field);
 
@@ -51,5 +53,7 @@ public:
   Tuple *current_tuple() override;
 
 private:
+  std::vector<std::unique_ptr<Expression>> expressions_;
   ProjectTuple tuple_;
+  ValueListTuple val_tuple_;
 };

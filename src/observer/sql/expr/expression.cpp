@@ -201,6 +201,11 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
   const AttrType target_type = value_type();
   value.set_type(target_type);
 
+  if (left_value.is_null() || right_value.is_null()) {
+    value.set_null();
+    return RC::SUCCESS;
+  }
+
   switch (arithmetic_type_) {
   case Type::ADD: {
     if (target_type == AttrType::INTS) {

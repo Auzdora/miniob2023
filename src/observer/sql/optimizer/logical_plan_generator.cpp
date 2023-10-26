@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/logical_plan_generator.h"
 
 #include "common/log/log.h"
+#include "sql/expr/expression.h"
 #include "sql/operator/aggr_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
@@ -30,6 +31,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/table_get_logical_operator.h"
 
 #include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
@@ -98,12 +100,26 @@ RC LogicalPlanGenerator::create_plan(
 
   const std::vector<Table *> &tables = select_stmt->tables();
   const std::vector<Field> &all_fields = select_stmt->query_fields();
+  const std::vector<Expression *> &all_expressions = select_stmt->query_expressions();
   int inner_join_idx = 0;
   const std::vector<std::string> &all_aggr_funcs = select_stmt->aggr_funcs();
   // only support aggr on one table for now
   if (!all_aggr_funcs.empty() && tables.size() > 1) {
     LOG_WARN("do not support aggregation on multiple tables");
     return RC::INTERNAL;
+  }
+
+  bool contain_expression = false;
+  if (select_stmt->query_fields().size() > select_stmt->query_expressions().size()) {
+    contain_expression = true;
+  } else {
+    // 意味着attribute的数量和expression的数量相同，一种可能是单纯的查询，另一种则是每个expression与常量运算
+    // 所以这里进一步判断
+    for (const auto expr : select_stmt->query_expressions()) {
+      if (expr->type() == ExprType::ARITHMETIC) {
+        contain_expression = true;
+      }
+    }
   }
   
   for (Table *table : tables) {
@@ -143,8 +159,13 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
-  unique_ptr<LogicalOperator> project_oper(
-      new ProjectLogicalOperator(all_fields));
+  unique_ptr<LogicalOperator> project_oper;
+  if (contain_expression) {
+    project_oper = std::make_unique<ProjectLogicalOperator>(all_fields, all_expressions);
+  } else {
+    project_oper = std::make_unique<ProjectLogicalOperator>(all_fields);
+  }
+
   if (predicate_oper) {
     if (table_oper) {
       predicate_oper->add_child(std::move(table_oper));
@@ -196,16 +217,48 @@ RC LogicalPlanGenerator::create_plan(
   for (const FilterUnit *filter_unit : filter_units) {
     const FilterObj &filter_obj_left = filter_unit->left();
     const FilterObj &filter_obj_right = filter_unit->right();
+    unique_ptr<Expression> left;
+    unique_ptr<Expression> right;
 
-    unique_ptr<Expression> left(
-        filter_obj_left.is_attr
-            ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
-            : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
+    switch (filter_obj_left.type) {
+      case FilterObjType::FIELD: {
+        left = std::make_unique<FieldExpr>(filter_obj_left.field);
+      } break;
+      case FilterObjType::VALUE: {
+        left = std::make_unique<ValueExpr>(filter_obj_left.value);
+      } break;
+      case FilterObjType::CALC: {
+        left.reset(filter_obj_left.expr);
+      } break;
+      default: {
+        return RC::INTERNAL;
+      } break;
+    }
+  
+    switch (filter_obj_right.type) {
+      case FilterObjType::FIELD: {
+        right = std::make_unique<FieldExpr>(filter_obj_right.field);
+      } break;
+      case FilterObjType::VALUE: {
+        right = std::make_unique<ValueExpr>(filter_obj_right.value);
+      } break;
+      case FilterObjType::CALC: {
+        right.reset(filter_obj_right.expr);
+      } break;
+      default: {
+        return RC::INTERNAL;
+      } break;
+    }
 
-    unique_ptr<Expression> right(
-        filter_obj_right.is_attr
-            ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
-            : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
+    // unique_ptr<Expression> left(
+    //     filter_obj_left.is_attr
+    //         ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
+    //         : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
+
+    // unique_ptr<Expression> right(
+    //     filter_obj_right.is_attr
+    //         ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
+    //         : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(
         filter_unit->comp(), std::move(left), std::move(right));
