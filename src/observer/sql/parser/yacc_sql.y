@@ -111,6 +111,10 @@ int aggregation_cnt = 0;
         BY
         ASC
         MINUS
+        LENGTH
+        ROUND
+        DATE_FORMAT
+        AS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -124,6 +128,7 @@ int aggregation_cnt = 0;
   OrderBySqlNode *                  order_attr;
   AggrAttrSqlNode *                 aggr_attr;
   UpdateFieldNode *                 update_field;
+  FuncSqlNode *                     func;
   ExprSqlNode *                     expression;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -142,6 +147,7 @@ int aggregation_cnt = 0;
   std::vector<std::string> *        index_list;
   std::vector<UpdateFieldNode> *    update_field_list;
   char *                            string;
+  char *                            alias;
   int                               number;
   float                             floats;
   bool                              nullable;
@@ -158,6 +164,7 @@ int aggregation_cnt = 0;
 %type <number>              type
 %type <condition>           condition
 %type <value>               value
+%type <alias>               alias
 %type <expr_value>          expr_value
 %type <number>              number
 %type <comp>                comp_op
@@ -186,6 +193,7 @@ int aggregation_cnt = 0;
 %type <index_list>          index_list
 %type <update_field>        update_field
 %type <update_field_list>   update_field_list
+%type <func>                func
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -704,6 +712,14 @@ select_stmt:        /*  select 语句的语法解析树*/
       aggregation_cnt = 0;
       free($4);
     }
+    | SELECT expression_list
+    {
+      $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($2 != nullptr) {
+        $$->selection.expressions.swap(*$2);
+        delete $2;
+      }
+    }
     /* | SELECT select_attr FROM ID rel_list where ORDER BY order_by_list 
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
@@ -815,6 +831,10 @@ expression:
       for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
+      $$->functions.swap($3->functions);
+      for (const auto &func : $1->functions) {
+        $$->functions.emplace_back(func);
+      }
     }
     | expression MINUS expression {
       $$ = new ExprSqlNode;
@@ -826,6 +846,10 @@ expression:
       $$->attributes.swap($3->attributes);
       for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
+      }
+      $$->functions.swap($3->functions);
+      for (const auto &func : $1->functions) {
+        $$->functions.emplace_back(func);
       }
     }
     | expression '*' expression {
@@ -839,6 +863,10 @@ expression:
       for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
+      $$->functions.swap($3->functions);
+      for (const auto &func : $1->functions) {
+        $$->functions.emplace_back(func);
+      }
     }
     | expression '/' expression {
       $$ = new ExprSqlNode;
@@ -851,6 +879,10 @@ expression:
       for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
+      $$->functions.swap($3->functions);
+      for (const auto &func : $1->functions) {
+        $$->functions.emplace_back(func);
+      }
     }
     | LBRACE expression RBRACE {
       $$ = $2;
@@ -861,6 +893,7 @@ expression:
       $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2->expression, nullptr, sql_string, &@$);
       $$->aggregations.swap($2->aggregations);
       $$->attributes.swap($2->attributes);
+      $$->functions.swap($2->functions);
     }
     | expr_value {
       $$ = new ExprSqlNode;
@@ -887,6 +920,48 @@ expression:
       $$->attributes.push_back(*rel_node);
       delete $1;
       delete rel_node;
+    }
+    | func {
+      $$ = new ExprSqlNode;
+      switch($1->function_type) {
+        case FunctionType::LENGTH_T: {
+          if ($1->is_attr) {
+            $$->expression = new FunctionExpr($1->relation_name, $1->attribute_name, $1->function_type);
+            $$->expression->set_name(token_name(sql_string, &@$));
+            $$->functions.emplace_back(*$1);
+          } else {
+            $$->expression = new FunctionExpr($1->value, $1->function_type);
+            $$->expression->set_name(token_name(sql_string, &@$));
+            $$->functions.emplace_back(*$1);
+          }
+        } break;
+        case FunctionType::ROUND_T: {
+          if ($1->is_attr) {
+            $$->expression = new FunctionExpr($1->relation_name, $1->attribute_name, $1->function_type, $1->param.get_int());
+            $$->expression->set_name(token_name(sql_string, &@$));
+            $$->functions.emplace_back(*$1);
+          } else {
+            $$->expression = new FunctionExpr($1->value, $1->function_type, $1->param.get_int());
+            $$->expression->set_name(token_name(sql_string, &@$));
+            $$->functions.emplace_back(*$1);
+          }
+        } break;
+        case FunctionType::DATE_FORMAT_T: {
+          if ($1->is_attr) {
+            $$->expression = new FunctionExpr($1->relation_name, $1->attribute_name, $1->function_type, $1->param.get_string());
+            $$->expression->set_name(token_name(sql_string, &@$));
+            $$->functions.emplace_back(*$1);
+          } else {
+            $$->expression = new FunctionExpr($1->value, $1->function_type, $1->param.get_string());
+            $$->expression->set_name(token_name(sql_string, &@$));
+            $$->functions.emplace_back(*$1);
+          }
+        } break;
+        default: {
+          return -1;
+        } break;
+      }
+      delete $1;
     }
     ;
     ;
@@ -993,6 +1068,132 @@ aggr_attr:
       return -1;
     }
     ;
+
+func:
+    LENGTH LBRACE ID RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($5 != nullptr) {
+        $$->alias = $5;
+        free($5);
+      }
+      $$->function_type = FunctionType::LENGTH_T;
+      $$->attribute_name = $3;
+      $$->is_attr = true;
+      free($3);
+    }
+    | LENGTH LBRACE ID DOT ID RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($7 != nullptr) {
+        $$->alias = $7;
+        free($7);
+      }
+      $$->function_type = FunctionType::LENGTH_T;
+      $$->relation_name = $3;
+      $$->attribute_name = $5;
+      $$->is_attr = true;
+      free($3);
+      free($5);
+    }
+    | LENGTH LBRACE value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->function_type = FunctionType::LENGTH_T;
+      $$->value = *$3;
+      $$->is_attr = false;
+      delete $3;
+    }
+    | ROUND LBRACE ID COMMA value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($7 != nullptr) {
+        $$->alias = $7;
+      }
+      $$->function_type = FunctionType::ROUND_T;
+      $$->attribute_name = $3;
+      free($3);
+      $$->param = *$5;
+      $$->is_attr = true;
+      delete $5;
+    }
+    | ROUND LBRACE ID DOT ID COMMA value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($9 != nullptr) {
+        $$->alias = $9;
+      }
+      $$->function_type = FunctionType::ROUND_T;
+      $$->relation_name = $3;
+      $$->attribute_name = $5;
+      free($3);
+      free($5);
+      $$->param = *$7;
+      $$->is_attr = true;
+      delete $7;
+    }
+    | ROUND LBRACE value COMMA value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($7 != nullptr) {
+        $$->alias = $7;
+      }
+      $$->function_type = FunctionType::ROUND_T;
+      $$->value = *$3;
+      delete $3;
+      $$->param = *$5;
+      $$->is_attr = false;
+      delete $5;
+    }
+    | DATE_FORMAT LBRACE ID COMMA value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($7 != nullptr) {
+        $$->alias = $7;
+      }
+      $$->function_type = FunctionType::DATE_FORMAT_T;
+      $$->attribute_name = $3;
+      free($3);
+      $$->param = *$5;
+      $$->is_attr = true;
+      delete $5;
+    }
+    | DATE_FORMAT LBRACE ID DOT ID COMMA value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($9 != nullptr) {
+        $$->alias = $9;
+      }
+      $$->function_type = FunctionType::DATE_FORMAT_T;
+      $$->relation_name = $3;
+      $$->attribute_name = $5;
+      free($3);
+      free($5);
+      $$->param = *$7;
+      $$->is_attr = true;
+      delete $7;
+    }
+    | DATE_FORMAT LBRACE value COMMA value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($7 != nullptr) {
+        $$->alias = $7;
+      }
+      $$->function_type = FunctionType::DATE_FORMAT_T;
+      $$->value = *$3;
+      delete $3;
+      $$->param = *$5;
+      $$->is_attr = false;
+      delete $5;
+    }
+    ;
+
+alias:
+    {
+      $$ = nullptr;
+    }
+    | ID {
+      $$ = $1;
+      free($1);
+    }
+    | AS ID {
+      $$ = $2;
+      free($2);
+    }
 
 attr_list:
     /* empty */
@@ -1109,6 +1310,9 @@ condition:
         case ExprType::AGGREGATION: {
           $$->left_con_type = ConditionType::CON_AGGR_T;
         } break;
+        case ExprType::FUNCTION: {
+          $$->left_con_type = ConditionType::CON_FUNC_T;
+        } break;
         default: {
           return -1;
         } break;
@@ -1127,6 +1331,9 @@ condition:
         } break;
         case ExprType::AGGREGATION: {
           $$->right_con_type = ConditionType::CON_AGGR_T;
+        } break;
+        case ExprType::FUNCTION: {
+          $$->right_con_type = ConditionType::CON_FUNC_T;
         } break;
         default: {
           return -1;

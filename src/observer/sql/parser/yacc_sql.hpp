@@ -109,12 +109,16 @@ extern int yydebug;
     BY = 310,                      /* BY  */
     ASC = 311,                     /* ASC  */
     MINUS = 312,                   /* MINUS  */
-    NUMBER = 313,                  /* NUMBER  */
-    DATE = 314,                    /* DATE  */
-    FLOAT = 315,                   /* FLOAT  */
-    ID = 316,                      /* ID  */
-    SSS = 317,                     /* SSS  */
-    UMINUS = 318                   /* UMINUS  */
+    LENGTH = 313,                  /* LENGTH  */
+    ROUND = 314,                   /* ROUND  */
+    DATE_FORMAT = 315,             /* DATE_FORMAT  */
+    AS = 316,                      /* AS  */
+    NUMBER = 317,                  /* NUMBER  */
+    DATE = 318,                    /* DATE  */
+    FLOAT = 319,                   /* FLOAT  */
+    ID = 320,                      /* ID  */
+    SSS = 321,                     /* SSS  */
+    UMINUS = 322                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -123,7 +127,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 116 "yacc_sql.y"
+#line 120 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -135,6 +139,7 @@ union YYSTYPE
   OrderBySqlNode *                  order_attr;
   AggrAttrSqlNode *                 aggr_attr;
   UpdateFieldNode *                 update_field;
+  FuncSqlNode *                     func;
   ExprSqlNode *                     expression;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -153,11 +158,12 @@ union YYSTYPE
   std::vector<std::string> *        index_list;
   std::vector<UpdateFieldNode> *    update_field_list;
   char *                            string;
+  char *                            alias;
   int                               number;
   float                             floats;
   bool                              nullable;
 
-#line 161 "yacc_sql.hpp"
+#line 167 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

@@ -197,6 +197,12 @@ RC FilterStmt::Init_filter_unit(
   case CON_SUBSELECT_T: {
     // do nothing for now
   } break;
+  case CON_FUNC_T: {
+    FilterObj filter_obj;
+    filter_obj.init_expression(condition.left_expr_node.expression);
+    filter_obj.expr->init(db, default_table);
+    filter_unit->set_left(filter_obj);
+  } break;
   default: {
     return RC::INTERNAL;
     break;
@@ -230,6 +236,12 @@ RC FilterStmt::Init_filter_unit(
     // do nothing for now
   } break;
   case CON_CALC_T: {
+    FilterObj filter_obj;
+    filter_obj.init_expression(condition.right_expr_node.expression);
+    filter_obj.expr->init(db, default_table);
+    filter_unit->set_right(filter_obj);
+  } break;
+  case CON_FUNC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.right_expr_node.expression);
     filter_obj.expr->init(db, default_table);

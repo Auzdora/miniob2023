@@ -13,8 +13,10 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/expr/expression.h"
+#include "common/log/log.h"
 #include "sql/expr/tuple.h"
 #include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 
 using namespace std;
 
@@ -312,6 +314,104 @@ RC ArithmeticExpr::try_get_value(Value &value) const {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
- RC AggregationExpr::get_value(const Tuple &tuple, Value &value) const{
+RC AggregationExpr::get_value(const Tuple &tuple, Value &value) const {
   return tuple.cell_at(index(), value);
- }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// TODO: implement function
+RC FunctionExpr::get_value(const Tuple &tuple, Value &value) const {
+  RC rc = RC::SUCCESS;
+  Value ans;
+  if (!is_value_) {
+    rc =tuple.find_cell(TupleCellSpec(table_name(), field_name()), ans);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("function expression get value error");
+      return rc;
+    }
+  } else {
+    ans = value_;
+  }
+
+  // do function
+  switch (func_type_) {
+    case FunctionType::LENGTH_T: {
+      if (ans.attr_type() != AttrType::CHARS) {
+        return RC::INTERNAL;
+      }
+      // length func
+      int length = ans.get_string().length();
+      value.set_int(length);
+    } break;
+    case FunctionType::ROUND_T: {
+      if (ans.attr_type() != AttrType::FLOATS) {
+        return RC::INTERNAL;
+      }
+      float rounded_value = std::round(ans.get_float() * std::pow(10, int_param_)) / std::pow(10, int_param_);
+      value.set_float(rounded_value);
+    } break;
+    case FunctionType::DATE_FORMAT_T: {
+      if (ans.attr_type() != AttrType::DATES) {
+        return RC::INTERNAL;
+      }
+      // date_format func
+      int date_as_int = ans.get_int();
+      std::string formatted_date = format_date(date_as_int, date_param_);
+      value.set_string(formatted_date.c_str());
+      value.set_type(AttrType::CHARS);
+    } break;
+    default: {
+      return RC::INTERNAL;
+    } break;
+  }
+  return rc;
+}
+
+std::string FunctionExpr::to_padded_string(int value, int padding) const {
+    std::string str = std::to_string(value);
+    while (str.length() < padding) {
+        str = "0" + str;
+    }
+    return str;
+}
+
+std::string FunctionExpr::format_date(int date_int, const std::string& format) const  {
+    int year = date_int / 10000;
+    int month = (date_int % 10000) / 100;
+    int day = date_int % 100;
+
+    std::string result = "";
+    for (size_t i = 0; i < format.size(); ++i) {
+        if (format[i] == '%' && i + 1 < format.size()) {
+            char next_char = format[i + 1];
+            switch (next_char) {
+                case 'y': result += to_padded_string(year % 100); break;
+                case 'Y': result += std::to_string(year); break;
+                case 'm': result += to_padded_string(month); break;
+                case 'd': result += to_padded_string(day); break;
+                case 'D': {
+                    static const std::array<std::string, 31> suffixes = {
+                        "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th",
+                        "th", "th", "th", "th", "th", "th", "th", "th", "th", "th",
+                        "th", "th", "rd", "th", "th", "th", "th", "th", "th", "th", "st"
+                    };
+                    result += std::to_string(day) + suffixes[day - 1];
+                } break;
+                case 'M': {
+                    static const std::vector<std::string> months = {
+                        "January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November", "December"
+                    };
+                    result += months[month - 1];
+                } break;
+                case 'z': result += std::to_string(year); break;
+                case 'n': result += std::to_string(month); break;
+                default: result += format[i]; break;
+            }
+            i++; // Skip next character
+        } else {
+            result += format[i];
+        }
+    }
+    return result;
+}

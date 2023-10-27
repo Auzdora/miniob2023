@@ -51,6 +51,8 @@ public:
    */
   RC writen(const char *data, int32_t size);
 
+  RC clear() { return buffer_.clear();}
+
   /**
    * @brief 刷新缓存
    * @details 将缓存中的数据全部写入文件/socket

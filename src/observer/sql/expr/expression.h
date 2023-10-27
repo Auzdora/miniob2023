@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -14,14 +14,15 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include <string.h>
 #include <memory>
+#include <string.h>
 #include <string>
 
+#include "common/log/log.h"
+#include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 #include "storage/db/db.h"
 #include "storage/field/field.h"
-#include "sql/parser/value.h"
-#include "common/log/log.h"
 #include "storage/field/field_meta.h"
 
 class Tuple;
@@ -35,17 +36,17 @@ class Tuple;
  * @brief 表达式类型
  * @ingroup Expression
  */
-enum class ExprType 
-{
+enum class ExprType {
   NONE,
-  STAR,         ///< 星号，表示所有字段
-  FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
-  VALUE,        ///< 常量值
-  CAST,         ///< 需要做类型转换的表达式
-  COMPARISON,   ///< 需要做比较的表达式
-  CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
-  ARITHMETIC,   ///< 算术运算
-  AGGREGATION,  ///< 聚合函数
+  STAR, ///< 星号，表示所有字段
+  FIELD, ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
+  VALUE,       ///< 常量值
+  CAST,        ///< 需要做类型转换的表达式
+  COMPARISON,  ///< 需要做比较的表达式
+  CONJUNCTION, ///< 多个表达式使用同一种关系(AND或OR)来联结
+  ARITHMETIC,  ///< 算术运算
+  AGGREGATION, ///< 聚合函数
+  FUNCTION,    ///< 函数
 };
 
 /**
@@ -59,8 +60,7 @@ enum class ExprType
  * 才能计算出来真实的值。但是有些表达式可能就表示某一个固定的
  * 值，比如ValueExpr。
  */
-class Expression 
-{
+class Expression {
 public:
   Expression() = default;
   virtual ~Expression() = default;
@@ -68,18 +68,17 @@ public:
   virtual void init(Db *db, Table *default_table) = 0;
 
   /**
-   * @brief 根据具体的tuple，来计算当前表达式的值。tuple有可能是一个具体某个表的行数据
+   * @brief
+   * 根据具体的tuple，来计算当前表达式的值。tuple有可能是一个具体某个表的行数据
    */
   virtual RC get_value(const Tuple &tuple, Value &value) const = 0;
 
   /**
-   * @brief 在没有实际运行的情况下，也就是无法获取tuple的情况下，尝试获取表达式的值
+   * @brief
+   * 在没有实际运行的情况下，也就是无法获取tuple的情况下，尝试获取表达式的值
    * @details 有些表达式的值是固定的，比如ValueExpr，这种情况下可以直接获取值
    */
-  virtual RC try_get_value(Value &value) const
-  {
-    return RC::UNIMPLENMENT;
-  }
+  virtual RC try_get_value(Value &value) const { return RC::UNIMPLENMENT; }
 
   /**
    * @brief 表达式的类型
@@ -102,7 +101,7 @@ public:
   virtual void set_name(std::string name) { name_ = name; }
 
 private:
-  std::string  name_;
+  std::string name_;
   int index_;
 };
 
@@ -110,16 +109,16 @@ private:
  * @brief 字段表达式
  * @ingroup Expression
  */
-class FieldExpr : public Expression 
-{
+class FieldExpr : public Expression {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field)
-  {}
+  FieldExpr(const Table *table, const FieldMeta *field)
+      : field_(table, field) {}
 
   void init(Db *db, Table *default_table) override {
     if (table_name_.empty()) {
-      const FieldMeta *field_meta = default_table->table_meta().field(field_name_.c_str());
+      const FieldMeta *field_meta =
+          default_table->table_meta().field(field_name_.c_str());
       field_.set_table(default_table);
       field_.set_field(field_meta);
       table_name_ = default_table->name();
@@ -128,20 +127,20 @@ public:
     }
 
     Table *new_table = db->find_table(table_name_.c_str());
-    const FieldMeta *field_meta = new_table->table_meta().field(field_name_.c_str());
+    const FieldMeta *field_meta =
+        new_table->table_meta().field(field_name_.c_str());
     field_.set_table(new_table);
     field_.set_field(field_meta);
     table_name_ = new_table->name();
     field_name_ = field_meta->name();
   }
 
-  FieldExpr(const Field &field) : field_(field)
-  {
+  FieldExpr(const Field &field) : field_(field) {
     table_name_ = field.table_name();
     field_name_ = field.field_name();
   }
-  FieldExpr(const std::string table_name,const std::string field_name) : table_name_(table_name), field_name_(field_name)
-  {}
+  FieldExpr(const std::string table_name, const std::string field_name)
+      : table_name_(table_name), field_name_(field_name) {}
 
   virtual ~FieldExpr() = default;
 
@@ -152,9 +151,7 @@ public:
 
   const Field &field() const { return field_; }
 
-  void init_field(const Field &field){
-    field_ = field;
-  }
+  void init_field(const Field &field) { field_ = field; }
 
   const char *table_name() const { return table_name_.c_str(); }
 
@@ -164,29 +161,28 @@ public:
 
 private:
   Field field_;
-  std::string table_name_;            // for expression parser
-  std::string field_name_;            // for expression parser
+  std::string table_name_; // for expression parser
+  std::string field_name_; // for expression parser
 };
 
 /**
  * @brief 常量值表达式
  * @ingroup Expression
  */
-class ValueExpr : public Expression 
-{
+class ValueExpr : public Expression {
 public:
   ValueExpr() = default;
-  explicit ValueExpr(const Value &value) : value_(value)
-  {}
+  explicit ValueExpr(const Value &value) : value_(value) {}
 
   virtual ~ValueExpr() = default;
 
-  void init(Db *db, Table *default_table) override {
-    return;
-  }
+  void init(Db *db, Table *default_table) override { return; }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
-  RC try_get_value(Value &value) const override { value = value_; return RC::SUCCESS; }
+  RC try_get_value(Value &value) const override {
+    value = value_;
+    return RC::SUCCESS;
+  }
 
   ExprType type() const override { return ExprType::VALUE; }
 
@@ -204,20 +200,14 @@ private:
  * @brief 类型转换表达式
  * @ingroup Expression
  */
-class CastExpr : public Expression 
-{
+class CastExpr : public Expression {
 public:
   CastExpr(std::unique_ptr<Expression> child, AttrType cast_type);
   virtual ~CastExpr();
 
-  void init(Db *db, Table *default_table) override {
-    return;
-  }
+  void init(Db *db, Table *default_table) override { return; }
 
-  ExprType type() const override
-  {
-    return ExprType::CAST;
-  }
+  ExprType type() const override { return ExprType::CAST; }
   RC get_value(const Tuple &tuple, Value &value) const override;
 
   RC try_get_value(Value &value) const override;
@@ -230,18 +220,18 @@ private:
   RC cast(const Value &value, Value &cast_value) const;
 
 private:
-  std::unique_ptr<Expression> child_;  ///< 从这个表达式转换
-  AttrType cast_type_;  ///< 想要转换成这个类型
+  std::unique_ptr<Expression> child_; ///< 从这个表达式转换
+  AttrType cast_type_;                ///< 想要转换成这个类型
 };
 
 /**
  * @brief 比较表达式
  * @ingroup Expression
  */
-class ComparisonExpr : public Expression 
-{
+class ComparisonExpr : public Expression {
 public:
-  ComparisonExpr(CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  ComparisonExpr(CompOp comp, std::unique_ptr<Expression> left,
+                 std::unique_ptr<Expression> right);
   virtual ~ComparisonExpr();
 
   void init(Db *db, Table *default_table) override {
@@ -257,7 +247,7 @@ public:
 
   CompOp comp() const { return comp_; }
 
-  std::unique_ptr<Expression> &left()  { return left_;  }
+  std::unique_ptr<Expression> &left() { return left_; }
   std::unique_ptr<Expression> &right() { return right_; }
 
   /**
@@ -284,8 +274,7 @@ private:
  * 多个表达式使用同一种关系(AND或OR)来联结
  * 当前miniob仅有AND操作
  */
-class ConjunctionExpr : public Expression 
-{
+class ConjunctionExpr : public Expression {
 public:
   enum class Type {
     AND,
@@ -293,7 +282,8 @@ public:
   };
 
 public:
-  ConjunctionExpr(Type type, std::vector<std::unique_ptr<Expression>> &children);
+  ConjunctionExpr(Type type,
+                  std::vector<std::unique_ptr<Expression>> &children);
   virtual ~ConjunctionExpr() = default;
 
   void init(Db *db, Table *default_table) override {
@@ -321,8 +311,7 @@ private:
  * @brief 算术表达式
  * @ingroup Expression
  */
-class ArithmeticExpr : public Expression 
-{
+class ArithmeticExpr : public Expression {
 public:
   enum class Type {
     ADD,
@@ -334,7 +323,8 @@ public:
 
 public:
   ArithmeticExpr(Type type, Expression *left, Expression *right);
-  ArithmeticExpr(Type type, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  ArithmeticExpr(Type type, std::unique_ptr<Expression> left,
+                 std::unique_ptr<Expression> right);
   virtual ~ArithmeticExpr() = default;
 
   void init(Db *db, Table *default_table) override {
@@ -359,8 +349,9 @@ public:
   std::unique_ptr<Expression> &right() { return right_; }
 
 private:
-  RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
-  
+  RC calc_value(const Value &left_value, const Value &right_value,
+                Value &value) const;
+
 private:
   Type arithmetic_type_;
   std::unique_ptr<Expression> left_;
@@ -371,16 +362,13 @@ private:
  * @brief 聚合函数表达式
  * @ingroup Expression
  */
-class AggregationExpr : public Expression 
-{
+class AggregationExpr : public Expression {
 public:
   AggregationExpr() = default;
-  AggregationExpr(const std::string table_name,const std::string field_name) : table_name_(table_name), field_name_(field_name)
-  {}
+  AggregationExpr(const std::string table_name, const std::string field_name)
+      : table_name_(table_name), field_name_(field_name) {}
 
-  void init(Db *db, Table *default_table) override {
-    return;
-  }
+  void init(Db *db, Table *default_table) override { return; }
 
   virtual ~AggregationExpr() = default;
 
@@ -394,6 +382,96 @@ public:
   RC get_value(const Tuple &tuple, Value &value) const override;
 
 private:
-  std::string table_name_;            // for expression parser
-  std::string field_name_;            // for expression parser
+  std::string table_name_; // for expression parser
+  std::string field_name_; // for expression parser
+};
+
+/**
+ * @brief 函数运算表达式
+ * @ingroup Expression
+ */
+class FunctionExpr : public Expression {
+public:
+  FunctionExpr() = default;
+  FunctionExpr(const Value &value, FunctionType func_type)
+      : value_(value), func_type_(func_type) {
+    is_value_ = true;
+  }
+  FunctionExpr(const Value &value, FunctionType func_type, int int_param)
+      : value_(value), func_type_(func_type), int_param_(int_param) {
+    is_value_ = true;
+  }
+  FunctionExpr(const Value &value, FunctionType func_type,
+               std::string date_param)
+      : value_(value), func_type_(func_type), date_param_(date_param) {
+    is_value_ = true;
+  }
+  FunctionExpr(const std::string table_name, const std::string field_name,
+               FunctionType func_type)
+      : table_name_(table_name), field_name_(field_name),
+        func_type_(func_type) {
+    is_value_ = false;
+  }
+  FunctionExpr(const std::string table_name, const std::string field_name,
+               FunctionType func_type, int int_param)
+      : table_name_(table_name), field_name_(field_name), func_type_(func_type),
+        int_param_(int_param) {
+    is_value_ = false;
+  }
+  FunctionExpr(const std::string table_name, const std::string field_name,
+               FunctionType func_type, std::string date_param)
+      : table_name_(table_name), field_name_(field_name), func_type_(func_type),
+        date_param_(date_param) {
+    is_value_ = false;
+  }
+  virtual ~FunctionExpr() = default;
+
+  void init(Db *db, Table *default_table) override {
+    if (is_value_) {
+      return;
+    }
+    if (table_name_.empty()) {
+      const FieldMeta *field_meta =
+          default_table->table_meta().field(field_name_.c_str());
+      field_.set_table(default_table);
+      field_.set_field(field_meta);
+      table_name_ = default_table->name();
+      field_name_ = field_meta->name();
+      return;
+    }
+
+    Table *new_table = db->find_table(table_name_.c_str());
+    const FieldMeta *field_meta =
+        new_table->table_meta().field(field_name_.c_str());
+    field_.set_table(new_table);
+    field_.set_field(field_meta);
+    table_name_ = new_table->name();
+    field_name_ = field_meta->name();
+  }
+
+  ExprType type() const override { return ExprType::FUNCTION; }
+  AttrType value_type() const override {
+    if (is_value_) {
+      return value_.attr_type();
+    }
+    return field_.attr_type();
+  }
+
+  const char *table_name() const { return table_name_.c_str(); }
+
+  const char *field_name() const { return field_name_.c_str(); }
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+  std::string to_padded_string(int value, int padding = 2) const;
+
+private:
+  std::string format_date(int date_int, const std::string& format) const;
+  bool is_value_;
+  Value value_;
+  Field field_;
+  int int_param_;          // parameter for round
+  std::string date_param_; // parameter for date_format
+  FunctionType func_type_;
+  std::string table_name_;
+  std::string field_name_;
 };

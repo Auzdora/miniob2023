@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "sql/expr/tuple.h"
+#include "sql/operator/physical_operator.h"
 #include "sql/operator/project_physical_operator.h"
 #include "sql/parser/value.h"
 #include "storage/record/record.h"
@@ -38,11 +39,32 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 
 RC ProjectPhysicalOperator::next()
 {
-  if (children_.empty()) {
+  if (children_.empty() && expressions_.empty()) {
     return RC::RECORD_EOF;
   }
   if (expressions_.empty()) {
     return children_[0]->next();
+  }
+
+  if (children_.empty() && !expressions_.empty()) {
+    RowTuple useless;
+    std::vector<Value> cells;
+    Value cell;
+    for (const auto &expr : expressions_) {
+      RC rc = expr->get_value(useless, cell);
+      if (rc != RC::SUCCESS) {
+        LOG_INFO("project expression operator get value error");
+        return RC::INTERNAL;
+      }
+      cells.push_back(cell);
+    }
+    std::reverse(cells.begin(), cells.end());
+    val_tuple_.set_cells(cells);
+    if (first_call_) {
+      first_call_ = false;
+      return RC::SUCCESS;
+    }
+    return RC::RECORD_EOF;
   }
 
   // do expression
@@ -74,6 +96,7 @@ RC ProjectPhysicalOperator::close()
   if (!children_.empty()) {
     children_[0]->close();
   }
+  first_call_ = true;
   return RC::SUCCESS;
 }
 Tuple *ProjectPhysicalOperator::current_tuple()

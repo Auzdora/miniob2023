@@ -54,6 +54,7 @@ public:
 
 private:
   std::vector<std::unique_ptr<Expression>> expressions_;
+  bool first_call_{true};
   ProjectTuple tuple_;
   ValueListTuple val_tuple_;
 };

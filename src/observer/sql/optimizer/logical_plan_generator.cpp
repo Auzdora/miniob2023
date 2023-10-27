@@ -116,7 +116,7 @@ RC LogicalPlanGenerator::create_plan(
     // 意味着attribute的数量和expression的数量相同，一种可能是单纯的查询，另一种则是每个expression与常量运算
     // 所以这里进一步判断
     for (const auto expr : select_stmt->query_expressions()) {
-      if (expr->type() == ExprType::ARITHMETIC) {
+      if (expr->type() == ExprType::ARITHMETIC || expr->type() == ExprType::FUNCTION) {
         contain_expression = true;
       }
     }

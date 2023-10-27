@@ -51,6 +51,29 @@ struct AggrAttrSqlNode
   std::string attribute_name;     ///< attribute name            属性名
 };
 
+
+enum FunctionType{
+  LENGTH_T,
+  ROUND_T,
+  DATE_FORMAT_T,
+};
+
+/**
+ * @brief 描述一个函数
+ * @ingroup SQLParser
+ * @details 表示一个函数 length(id), round(num) 等等
+ */
+struct FuncSqlNode
+{
+  std::string relation_name;      ///< 表名
+  std::string alias;              ///< 别名
+  FunctionType function_type;     ///< 函数类型
+  std::string attribute_name;     ///< attribute name            属性名
+  Value       value;              ///< 输入的value值
+  Value       param;              ///< 函数的参数
+  bool        is_attr;            ///< 判断是否是属性还是数值
+};
+
 /**
  * @brief 描述比较运算符
  * @ingroup SQLParser
@@ -75,6 +98,7 @@ enum ConditionType{
   CON_SUBSELECT_T,
   CON_CALC_T,
   CON_AGGR_T,
+  CON_FUNC_T,
 };
 
 /**
@@ -87,6 +111,7 @@ struct ExprSqlNode
   Expression *                      expression;
   std::vector<AggrAttrSqlNode>      aggregations;
   std::vector<RelAttrSqlNode>       attributes;
+  std::vector<FuncSqlNode>          functions;
 };
 
 /**
