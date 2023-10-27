@@ -43,7 +43,10 @@ RC ProjectPhysicalOperator::next()
     return RC::RECORD_EOF;
   }
   if (expressions_.empty()) {
-    return children_[0]->next();
+    RC rc = children_[0]->next();
+    if (rc == RC::NOTFOUND)
+      return RC::RECORD_EOF;
+    return rc;
   }
 
   if (children_.empty() && !expressions_.empty()) {
