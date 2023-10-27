@@ -124,6 +124,47 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const {
     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
     return rc;
   }
+
+  // 对setexpr 做in 操作
+  if (comp_ == IN_OP || comp_ == NOT_IN_OP)
+  {
+    if (right_->type() == ExprType::SET)
+    {
+      bool bool_value = false;
+      SetExpr * set_expr = static_cast<SetExpr *>(right_.get());
+      std::vector<Expression *> sets = set_expr->get_expr_set();
+      for (int i = 0; i < sets.size();i++){
+        Value right_value;
+        rc = sets[i]->try_get_value(right_value);
+        if (rc != RC::SUCCESS)
+          return rc;
+        rc = compare_value(left_value, right_value, bool_value);
+        if (rc != RC::SUCCESS)
+          return rc;
+        if (comp_ == IN_OP){
+          if (bool_value)
+          {
+            value.set_boolean(true);
+            return RC::SUCCESS;
+          }
+        }else{
+          if (!bool_value)
+          {
+            value.set_boolean(false);
+            return RC::SUCCESS;
+          }
+        }
+      }
+      if (comp_ == IN_OP)
+      {
+        value.set_boolean(false);
+      }else {
+        value.set_boolean(true);
+      }
+      return RC::SUCCESS;
+    }
+  }
+
   rc = right_->get_value(tuple, right_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
@@ -416,3 +457,23 @@ std::string FunctionExpr::format_date(int date_int, const std::string& format) c
     }
     return result;
 }
+ /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ RC SubSelectExpr::get_value(const Tuple &tuple, Value &value) const{
+  return RC::INTERNAL;
+ }
+
+
+ RC SubSelectExpr::create_stmt(){
+  Stmt * stmt  =nullptr;
+  RC rc = SelectStmt::create(db_,this->get_subsqlNode(),stmt);
+  subselect_stmt_ = stmt;
+  return rc;
+ }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+RC SetExpr::get_value(const Tuple &tuple, Value &value) const{
+  return RC::INTERNAL;
+}
+

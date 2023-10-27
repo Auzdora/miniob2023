@@ -77,10 +77,12 @@ public:
   void set_left(const FilterObj &obj)
   {
     left_ = obj;
+    left_.expr = obj.expr;
   }
   void set_right(const FilterObj &obj)
   {
     right_ = obj;
+    right_.expr = obj.expr;
   }
 
   const FilterObj &left() const

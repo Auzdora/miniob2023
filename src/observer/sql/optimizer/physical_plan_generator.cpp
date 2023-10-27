@@ -187,10 +187,10 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper,
 RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper,
                                       unique_ptr<PhysicalOperator> &oper) {
   vector<unique_ptr<LogicalOperator>> &children_opers = pred_oper.children();
-  ASSERT(children_opers.size() == 1,
-         "predicate logical operator's sub oper number should be 1");
+  ASSERT(children_opers.size() < 1,
+         "predicate logical operator's sub oper number should great than 1");
 
-  LogicalOperator &child_oper = *children_opers.front();
+  LogicalOperator &child_oper = *children_opers.back();
 
   unique_ptr<PhysicalOperator> child_phy_oper;
   RC rc = create(child_oper, child_phy_oper);
@@ -206,8 +206,18 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper,
 
   unique_ptr<Expression> expression = std::move(expressions.front());
   oper = unique_ptr<PhysicalOperator>(
-      new PredicatePhysicalOperator(std::move(expression)));
+      new PredicatePhysicalOperator(std::move(expression),pred_oper.get_subselect_expr_names()));
   oper->add_child(std::move(child_phy_oper));
+  for (int i = 0; i < children_opers.size() - 1; i++){
+    unique_ptr<PhysicalOperator> subchild_oper;
+    RC rc = create(*children_opers[i], subchild_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create child operator of predicate operator. rc=%s",
+              strrc(rc));
+      return rc;
+    }
+    oper->add_child(std::move(subchild_oper));
+  }
   return rc;
 }
 

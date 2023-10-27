@@ -31,6 +31,7 @@ RC AggregationPhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
   first_call_ = true;
+
   return children_[0]->open(trx);
 }
 

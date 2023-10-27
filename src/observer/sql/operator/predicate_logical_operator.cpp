@@ -18,3 +18,4 @@ PredicateLogicalOperator::PredicateLogicalOperator(std::unique_ptr<Expression> e
 {
   expressions_.emplace_back(std::move(expression));
 }
+

@@ -28,13 +28,16 @@ class PredicatePhysicalOperator : public PhysicalOperator
 {
 public:
   PredicatePhysicalOperator(std::unique_ptr<Expression> expr);
-
+  PredicatePhysicalOperator(std::unique_ptr<Expression> expr,std::vector<std::string> subselect_expr_names);
   virtual ~PredicatePhysicalOperator() = default;
 
   PhysicalOperatorType type() const override
   {
     return PhysicalOperatorType::PREDICATE;
   }
+  
+  RC do_compare_expr(Tuple &tuple,Value &value);
+  RC InOpFunc(PhysicalOperator *&child,Value &left_value,Value &value, CompOp comp);
 
   RC open(Trx *trx) override;
   RC next() override;
@@ -44,4 +47,6 @@ public:
 
 private:
   std::unique_ptr<Expression> expression_;
+  std::vector<std::string>    subselect_expr_names_;
+  Trx *trx_;
 };

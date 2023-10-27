@@ -486,6 +486,12 @@ int Value::compare(const Value &other,int op) const{
       else
         return true;
     }break;
+    case IN_OP: {
+        return 0 == cmp_result;
+    }break;
+    case NOT_IN_OP:{
+        return 0 != cmp_result;
+    }break;
     default:
       return -1;
       break;

@@ -214,6 +214,8 @@ RC LogicalPlanGenerator::create_plan(
     FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator) {
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
+  std::vector<std::unique_ptr<LogicalOperator>> subselect_lopers;
+  std::vector<std::string> subselect_expr_names;
   for (const FilterUnit *filter_unit : filter_units) {
     const FilterObj &filter_obj_left = filter_unit->left();
     const FilterObj &filter_obj_right = filter_unit->right();
@@ -230,9 +232,6 @@ RC LogicalPlanGenerator::create_plan(
       case FilterObjType::CALC: {
         left.reset(filter_obj_left.expr);
       } break;
-      default: {
-        return RC::INTERNAL;
-      } break;
     }
   
     switch (filter_obj_right.type) {
@@ -245,20 +244,34 @@ RC LogicalPlanGenerator::create_plan(
       case FilterObjType::CALC: {
         right.reset(filter_obj_right.expr);
       } break;
-      default: {
-        return RC::INTERNAL;
-      } break;
     }
 
-    // unique_ptr<Expression> left(
-    //     filter_obj_left.is_attr
-    //         ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
-    //         : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
+    left.reset(filter_obj_left.expr);
+    right.reset(filter_obj_right.expr);
 
-    // unique_ptr<Expression> right(
-    //     filter_obj_right.is_attr
-    //         ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
-    //         : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
+    if (left->type() == ExprType::SUBSELECT)
+    {
+      SubSelectExpr * subselect_expr = static_cast<SubSelectExpr *>(left.get());
+      if(RC::SUCCESS != subselect_expr->create_stmt())
+        return RC::INTERNAL;
+      unique_ptr<LogicalOperator> subselect_loper = nullptr;
+      if (RC::SUCCESS != create(subselect_expr->get_stmt(),subselect_loper))
+        return RC::INTERNAL;
+      subselect_lopers.emplace_back(std::move(subselect_loper));
+      subselect_expr_names.push_back(subselect_expr->name());
+    }
+
+    if (right->type() == ExprType::SUBSELECT)
+    {
+      SubSelectExpr * subselect_expr = static_cast<SubSelectExpr *>(right.get());
+      if(RC::SUCCESS != subselect_expr->create_stmt())
+        return RC::INTERNAL;
+      unique_ptr<LogicalOperator> subselect_loper = nullptr;
+      if (RC::SUCCESS != create(subselect_expr->get_stmt(),subselect_loper))
+        return RC::INTERNAL;
+      subselect_lopers.emplace_back(std::move(subselect_loper));
+      subselect_expr_names.push_back(subselect_expr->name());
+    }
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(
         filter_unit->comp(), std::move(left), std::move(right));
@@ -272,8 +285,14 @@ RC LogicalPlanGenerator::create_plan(
     predicate_oper = unique_ptr<PredicateLogicalOperator>(
         new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
-
+  predicate_oper->set_subselect_expr_name(subselect_expr_names);
   logical_operator = std::move(predicate_oper);
+  
+  for (int i = 0;i < subselect_lopers.size();i++)
+  {
+    logical_operator->add_child(std::move(subselect_lopers[i]));
+  }
+
   return RC::SUCCESS;
 }
 

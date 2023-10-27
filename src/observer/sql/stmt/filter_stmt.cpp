@@ -83,61 +83,60 @@ RC get_table_and_field(Db *db, Table *default_table,
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create_filter_unit(
-    Db *db, Table *default_table,
-    std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode &condition, FilterUnit *&filter_unit) {
-  RC rc = RC::SUCCESS;
+// RC FilterStmt::create_filter_unit(
+//     Db *db, Table *default_table,
+//     std::unordered_map<std::string, Table *> *tables,
+//     const ConditionSqlNode &condition, FilterUnit *&filter_unit) {
+//   RC rc = RC::SUCCESS;
 
-  CompOp comp = condition.comp;
-  if (comp < EQUAL_TO || comp >= NO_OP) {
-    LOG_WARN("invalid compare operator : %d", comp);
-    return RC::INVALID_ARGUMENT;
-  }
+//   CompOp comp = condition.comp;
+//   if (comp < EQUAL_TO || comp >= NO_OP) {
+//     LOG_WARN("invalid compare operator : %d", comp);
+//     return RC::INVALID_ARGUMENT;
+//   }
 
-  filter_unit = new FilterUnit;
+//   filter_unit = new FilterUnit;
 
-  if (condition.left_is_attr) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.left_attr,
-                             table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_left(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.left_value);
-    filter_unit->set_left(filter_obj);
-  }
+//   if (condition.left_type == CON_ATTR_T) {
+//     Table *table = nullptr;
+//     const FieldMeta *field = nullptr;
+//     rc = get_table_and_field(db, default_table, tables, condition.left_attr,
+//                              table, field);
+//     if (rc != RC::SUCCESS) {
+//       LOG_WARN("cannot find attr");
+//       return rc;
+//     }
+//     FilterObj filter_obj;
+//     filter_obj.init_attr(Field(table, field));
+//     filter_unit->set_left(filter_obj);
+//   } else if(condition.left_type == CON_VALUE_T) {
+//     FilterObj filter_obj;
+//     filter_obj.init_value(condition.left_value);
+//     filter_unit->set_left(filter_obj);
+//   }
 
-  if (condition.right_is_attr) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.right_attr,
-                             table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_right(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.right_value);
-    filter_unit->set_right(filter_obj);
-  }
+//   if (condition.right_type == CON_ATTR_T) {
+//     Table *table = nullptr;
+//     const FieldMeta *field = nullptr;
+//     rc = get_table_and_field(db, default_table, tables, condition.right_attr,
+//                              table, field);
+//     if (rc != RC::SUCCESS) {
+//       LOG_WARN("cannot find attr");
+//       return rc;
+//     }
+//     FilterObj filter_obj;
+//     filter_obj.init_attr(Field(table, field));
+//     filter_unit->set_right(filter_obj);
+//   } else if(condition.right_type == CON_VALUE_T) {
+//     FilterObj filter_obj;
+//     filter_obj.init_value(condition.right_value);
+//     filter_unit->set_right(filter_obj);
+//   }
 
-  filter_unit->set_comp(comp);
-
-  // 检查两个类型是否能够比较
-  return rc;
-}
+//   filter_unit->set_comp(comp);
+//   // 检查两个类型是否能够比较
+//   return rc;
+// }
 
 RC FilterStmt::create_filter_unit_expr(
     Db *db, Table *default_table,
@@ -154,7 +153,6 @@ RC FilterStmt::create_filter_unit_expr(
   filter_unit = new FilterUnit;
   rc = Init_filter_unit(db, default_table, tables, condition, filter_unit);
   filter_unit->set_comp(comp);
-
   // 检查两个类型是否能够比较
   return rc;
 }
@@ -162,7 +160,8 @@ RC FilterStmt::create_filter_unit_expr(
 RC FilterStmt::Init_filter_unit(
     Db *db, Table *default_table,
     std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode &condition, FilterUnit *&filter_unit) {
+    const ConditionSqlNode &condition, FilterUnit *&filter_unit)
+{
   RC rc = RC::SUCCESS;
 
   // 左expression
@@ -194,9 +193,20 @@ RC FilterStmt::Init_filter_unit(
     filter_obj.expr->init(db, default_table);
     filter_unit->set_left(filter_obj);
   } break;
-  case CON_SUBSELECT_T: {
-    // do nothing for now
-  } break;
+  case CON_SUBSELECT_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.left_expr_node.expression;   
+      SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.left_expr_node.expression);
+      subselect_expr->init_tables(tables,db);
+      filter_unit->set_left(filter_obj);
+    }break;
+  case CON_SET_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.left_expr_node.expression;  
+      filter_unit->set_left(filter_obj);
+    }break;
   case CON_FUNC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.left_expr_node.expression);
@@ -232,9 +242,20 @@ RC FilterStmt::Init_filter_unit(
     filter_obj.init_value(value_expr->get_value());
     filter_unit->set_right(filter_obj);
   } break;
-  case CON_SUBSELECT_T: {
-    // do nothing for now
-  } break;
+  case CON_SUBSELECT_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.right_expr_node.expression;   // TODO 指针空间被释放的问题吗
+      SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.right_expr_node.expression);
+      subselect_expr->init_tables(tables,db);
+      filter_unit->set_right(filter_obj);
+    }break;
+  case CON_SET_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.right_expr_node.expression; 
+      filter_unit->set_right(filter_obj);
+    }break;
   case CON_CALC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.right_expr_node.expression);
@@ -247,10 +268,5 @@ RC FilterStmt::Init_filter_unit(
     filter_obj.expr->init(db, default_table);
     filter_unit->set_right(filter_obj);
   } break;
-  default:
-    return RC::INTERNAL;
-    break;
   }
-
-  return rc;
 }

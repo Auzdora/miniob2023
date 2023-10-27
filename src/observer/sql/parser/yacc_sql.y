@@ -115,6 +115,8 @@ int aggregation_cnt = 0;
         ROUND
         DATE_FORMAT
         AS
+        IN
+        EXISTS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -189,6 +191,7 @@ int aggregation_cnt = 0;
 %type <aggr_attr_list>      aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
+%type <expression_list>     set_expression
 %type <nullable>            nullable
 %type <index_list>          index_list
 %type <update_field>        update_field
@@ -818,6 +821,21 @@ expression_list:
       $$->emplace_back(*$1);
     }
     ;
+set_expression:
+     COMMA expression
+    {
+      $$ = new std::vector<ExprSqlNode>;
+      $$->emplace_back(*$2);
+    }
+    | COMMA expression set_expression{
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<ExprSqlNode>;
+      }
+      $$->emplace_back(*$2);
+    }
+
 expression:
     expression '+' expression {
       $$ = new ExprSqlNode;
@@ -886,6 +904,18 @@ expression:
     }
     | LBRACE expression RBRACE {
       $$ = $2;
+      $$->expression->set_name(token_name(sql_string, &@$));
+    }
+    | LBRACE expression set_expression RBRACE
+    {
+      $3->emplace_back(*$2);
+      std::reverse($3->begin(), $3->end());
+      $$ = new ExprSqlNode;
+      std::vector<Expression*> set;
+      for (int i = 0; i < $3->size(); i++){
+        set.push_back(std::move($3->at(i).expression));
+      }
+      $$->expression = new SetExpr(set);
       $$->expression->set_name(token_name(sql_string, &@$));
     }
     | MINUS expression {
@@ -964,6 +994,12 @@ expression:
       delete $1;
     }
     ;
+    | select_stmt{
+      $$ = new ExprSqlNode;
+      ParsedSqlNode * subsql_node = std::move($1);
+      $$->expression = new SubSelectExpr(subsql_node);   
+      $$->expression->set_name(token_name(sql_string, &@$));
+    }
     ;
 
 select_attr:
@@ -1346,6 +1382,12 @@ condition:
         case ExprType::FUNCTION: {
           $$->left_con_type = ConditionType::CON_FUNC_T;
         } break;
+        case ExprType::SUBSELECT: {
+          $$->left_con_type = ConditionType::CON_SUBSELECT_T;
+        } break;
+        case ExprType::SET: {
+          $$->left_con_type = ConditionType::CON_SET_T;
+        } break;
         default: {
           return -1;
         } break;
@@ -1368,10 +1410,50 @@ condition:
         case ExprType::FUNCTION: {
           $$->right_con_type = ConditionType::CON_FUNC_T;
         } break;
+        case ExprType::SUBSELECT: {
+          $$->right_con_type = ConditionType::CON_SUBSELECT_T;
+        } break;
+        case ExprType::SET: {
+          $$->right_con_type = ConditionType::CON_SET_T;
+        } break;
         default: {
           return -1;
         } break;
       }
+    }
+    | EXISTS expression
+    {
+      $$ = new ConditionSqlNode;
+      $$->comp = CompOp::EXISTS_OP;
+      ExprSqlNode * left = new ExprSqlNode;
+      left->expression = new ValueExpr(Value(1));
+      left->expression->set_name("1");
+      $$->left_expr_node = *left;
+      $$->left_con_type = CON_VALUE_T;
+      $$->right_expr_node = *$2;
+      if ($2->expression->type() == ExprType::SUBSELECT)
+      {
+        $$->right_con_type = CON_SUBSELECT_T;
+      }
+      else
+        return -1; /// exists 目前只考虑后面是子查询语句的情况
+    }
+    | NOT EXISTS expression
+    {
+      $$ = new ConditionSqlNode;
+      $$->comp = CompOp::NOT_EXISTS_OP;
+      ExprSqlNode * left = new ExprSqlNode;
+      left->expression = new ValueExpr(Value(1));
+      left->expression->set_name("1");
+      $$->left_expr_node = *left;
+      $$->left_con_type = CON_VALUE_T;
+      $$->right_expr_node = *$3;
+      if ($3->expression->type() == ExprType::SUBSELECT)
+      {
+        $$->right_con_type = CON_SUBSELECT_T;
+      }
+      else
+        return -1; /// exists 目前只考虑后面是子查询语句的情况
     }
     /* rel_attr comp_op value
     {
@@ -1434,6 +1516,8 @@ comp_op:
     | NOT LIKE { $$ = NOT_LIKE_OP;}
     | IS { $$ = IS_OP;}
     | IS NOT { $$ = IS_NOT_OP;}
+    | IN {$$ = IN_OP;}
+    | NOT IN { $$ = NOT_IN_OP;}
     ;
 
 load_data_stmt:

@@ -43,6 +43,7 @@ enum class LogicalOperatorType
   EXPLAIN,    ///< 查看执行计划
   AGGREGATION,///< 聚合算子
   SORT,       ///< 排序算子
+  SUBSELECT,  ///< 子查询中间层
 };
 
 /**

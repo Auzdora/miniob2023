@@ -66,7 +66,7 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
   AttrType type_left = UNDEFINED;
   AttrType type_right = UNDEFINED;
 
-  if (1 == condition.left_is_attr) {
+  if (CON_ATTR_T == condition.left_con_type) {
     left.is_attr = true;
     const FieldMeta *field_left = table_meta.field(condition.left_attr.attribute_name.c_str());
     if (nullptr == field_left) {
@@ -77,7 +77,7 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
     left.attr_offset = field_left->offset();
 
     type_left = field_left->type();
-  } else {
+  } else if (CON_VALUE_T == condition.left_con_type){
     left.is_attr = false;
     left.value = condition.left_value;  // 校验type 或者转换类型
     type_left = condition.left_value.attr_type();
@@ -86,7 +86,7 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
     left.attr_offset = 0;
   }
 
-  if (1 == condition.right_is_attr) {
+  if (CON_ATTR_T == condition.right_con_type) {
     right.is_attr = true;
     const FieldMeta *field_right = table_meta.field(condition.right_attr.attribute_name.c_str());
     if (nullptr == field_right) {
@@ -96,7 +96,7 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
     right.attr_length = field_right->len();
     right.attr_offset = field_right->offset();
     type_right = field_right->type();
-  } else {
+  } else if (CON_VALUE_T == condition.right_con_type) {
     right.is_attr = false;
     right.value = condition.right_value;
     type_right = condition.right_value.attr_type();
