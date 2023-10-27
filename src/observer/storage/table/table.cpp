@@ -29,7 +29,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/index.h"
 #include "storage/index/bplus_tree_index.h"
 #include "storage/trx/trx.h"
-int null_cnt = -99999;
+
+int null_cnt =NULL_CNT;
 
 Table::~Table()
 {

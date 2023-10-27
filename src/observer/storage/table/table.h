@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table_meta.h"
 
 #define NULLABLE_TABLE_STRING "nullable_table"
+#define NULL_CNT -999999
 
 struct RID;
 class Record;

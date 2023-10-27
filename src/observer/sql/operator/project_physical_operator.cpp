@@ -38,7 +38,10 @@ RC ProjectPhysicalOperator::next()
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
-  return children_[0]->next();
+  RC rc = children_[0]->next();
+  if (rc == RC::NOTFOUND)
+    return RC::RECORD_EOF;
+  return rc;
 }
 
 RC ProjectPhysicalOperator::close()

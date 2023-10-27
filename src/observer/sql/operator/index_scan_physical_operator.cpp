@@ -86,7 +86,7 @@ RC IndexScanPhysicalOperator::next()
     }
 
     if (!filter_result) {
-      continue;
+      return RC::NOTFOUND;
     }
 
     rc = trx_->visit_record(table_, current_record_, readonly_);
