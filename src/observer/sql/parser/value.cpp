@@ -433,8 +433,23 @@ bool Value::compare_like(const Value &other) const {
 }
 
 int Value::compare(const Value &other,int op) const{
+  AttrType project_type1;
+  AttrType project_type2;
+
+  // 为 index 的null做映射
+  if (this->attr_type_ == INTS){
+    if (NULL_CNT + 1000 > this->get_int() && this->get_int() > NULL_CNT)
+      project_type1 = AttrType::OBNULL;
+  }
+  // 为 index 的null做映射
+  if (other.attr_type_ == INTS){
+    if (NULL_CNT + 1000 > this->get_int() && other.get_int() > NULL_CNT)
+      project_type2 = AttrType::OBNULL;
+  }
+  project_type1 = this->attr_type_;
+  project_type2 = other.attr_type();
   if (op != IS_OP && op != IS_NOT_OP){
-    if (this->attr_type_ == OBNULL || other.attr_type() == OBNULL)
+    if (project_type1 == OBNULL || project_type2 == OBNULL)
       return false;
   }
   int cmp_result = this->compare(other);
@@ -458,15 +473,15 @@ int Value::compare(const Value &other,int op) const{
       return !this->compare_like(other);
     } break;
     case IS_OP: {
-      if(this->attr_type_ == OBNULL && OBNULL == other.attr_type())
+      if(project_type1 == OBNULL && project_type2 == OBNULL)
         return true;
       else
         return false;
     } break;
     case IS_NOT_OP:{
-      if(this->attr_type_ == OBNULL && OBNULL == other.attr_type())
+      if(project_type1 == OBNULL && OBNULL == project_type2)
         return false;
-      else if (this->attr_type_ != OBNULL && OBNULL != other.attr_type())
+      else if (project_type1 != OBNULL && OBNULL != project_type2)
         return -1;
       else
         return true;

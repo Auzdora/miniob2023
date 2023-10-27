@@ -31,6 +31,7 @@ class Index;
 class IndexScanner;
 class RecordDeleter;
 class Trx;
+#define NULL_CNT -999999
 
 /**
  * @brief 表

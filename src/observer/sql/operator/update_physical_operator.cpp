@@ -113,6 +113,7 @@ RC UpdatePhysicalOperator::next()
             return RC::INTERNAL;
           }
         }
+        nullable_table.clear_bit(table_->table_meta().find_user_index_by_field(fields_[i].field_name()));
         memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
       }
     }
