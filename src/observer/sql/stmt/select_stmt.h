@@ -78,6 +78,10 @@ public:
   {
     return query_expressions_;
   }
+  const std::vector<std::string> &query_expressions_names() const
+  {
+    return query_expressions_names_;
+  }
 
 private:
   std::vector<Field> sort_fields_;
@@ -88,4 +92,5 @@ private:
   FilterStmt *filter_stmt_ = nullptr;
   std::vector<FilterStmt *> filter_stmts_;   // 多个filter for join 或者其他筛选
   std::vector<Expression *> query_expressions_;
+  std::vector<std::string> query_expressions_names_;
 };

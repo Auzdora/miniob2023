@@ -72,7 +72,7 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
 
       if (!select_stmt->query_expressions().empty()) {
         for (int i = select_stmt->query_expressions().size()-1; i >= 0; i--) {
-          schema.append_cell(select_stmt->query_expressions()[i]->name().c_str());
+          schema.append_cell(select_stmt->query_expressions_names()[i].c_str());
         }
       } else {
         int i = 0;

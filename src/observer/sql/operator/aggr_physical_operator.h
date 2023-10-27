@@ -25,6 +25,10 @@ class AggregationPhysicalOperator : public PhysicalOperator
 {
 public:
   AggregationPhysicalOperator(const std::vector<std::string> &aggr_funcs);
+  void add_expressions(std::vector<std::unique_ptr<Expression>> &&expressions)
+  {
+    expressions_ = std::move(expressions);
+  }
 
   virtual ~AggregationPhysicalOperator() = default;
 
@@ -48,9 +52,11 @@ public:
   Tuple *current_tuple() override;
 
 private:
+  std::vector<std::unique_ptr<Expression>> expressions_;
   std::vector<std::string> aggr_funcs_;
   std::vector<int> avg_count_results_;
   std::vector<Value> aggr_results_;
   ValueListTuple tuple_;
+  ValueListTuple val_tuple_;
   bool first_call_{true};
 };

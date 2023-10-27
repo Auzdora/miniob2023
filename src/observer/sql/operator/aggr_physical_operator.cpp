@@ -63,19 +63,35 @@ RC AggregationPhysicalOperator::next()
 
   // finish all aggregation
   for (int i = 0; i < aggr_funcs_.size(); i++) {
-    if (aggr_funcs_[i] == "avg") {
-      if (avg_count_results_[i] == 0)
-      {
-        aggr_results_[i].set_null();                            ///< 除数为0， 结果置null
-      }else{
-        if (aggr_results_[i].is_null())
-           aggr_results_[i].set_null();
-        else
-          aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
+      if (aggr_funcs_[i] == "avg") {
+        if (!avg_count_results_.empty())
+        {
+          if (aggr_results_[i].is_null())
+            aggr_results_[i].set_null();
+          else
+            aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
+        }
+        else{
+          aggr_results_[i].set_null();
+        }
       }
     }
-  }
   tuple_.set_cells(aggr_results_);
+
+  // finish aggr calculation, then do expression
+  std::vector<Value> cells;
+  Value cell;
+  for (const auto &expr : expressions_) {
+    rc = expr->get_value(tuple_, cell);
+    if (rc != RC::SUCCESS) {
+      LOG_INFO("project expression operator get value error");
+      return RC::INTERNAL;
+    }
+    cells.push_back(cell);
+  }
+  std::reverse(cells.begin(), cells.end());
+  val_tuple_.set_cells(cells);
+
   if (first_call_) {
     first_call_ = false;
     return RC::SUCCESS;
@@ -199,9 +215,11 @@ RC AggregationPhysicalOperator::close()
   if (!children_.empty()) {
     children_[0]->close();
   }
+  aggr_results_.clear();
+  avg_count_results_.clear();
   return RC::SUCCESS;
 }
 
 Tuple *AggregationPhysicalOperator::current_tuple() {
-  return &tuple_;
+  return &val_tuple_;
 }

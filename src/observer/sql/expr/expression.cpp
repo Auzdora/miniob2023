@@ -313,5 +313,5 @@ RC ArithmeticExpr::try_get_value(Value &value) const {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
  RC AggregationExpr::get_value(const Tuple &tuple, Value &value) const{
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  return tuple.cell_at(index(), value);
  }

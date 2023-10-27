@@ -404,9 +404,11 @@ RC PhysicalPlanGenerator::create_plan(AggregationLogicalOperator &aggr_oper, uni
     LOG_WARN("failed to create child operator of aggregation operator. rc=%s", strrc(rc));
     return rc;
   }
-
-  oper = unique_ptr<PhysicalOperator>(new AggregationPhysicalOperator(std::move(aggr_oper.aggr_funcs())));
-  oper->add_child(std::move(child_phy_oper));
+  AggregationPhysicalOperator *aggr_oper_phy = new AggregationPhysicalOperator(std::move(aggr_oper.aggr_funcs()));
+  aggr_oper_phy->add_expressions(std::move(aggr_oper.expressions()));
+  // oper = unique_ptr<PhysicalOperator>(new AggregationPhysicalOperator(std::move(aggr_oper.aggr_funcs())));
+  aggr_oper_phy->add_child(std::move(child_phy_oper));
+  oper = unique_ptr<PhysicalOperator>(aggr_oper_phy);
   return rc;
 }
 

@@ -13,6 +13,16 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/aggr_logical_operator.h"
+#include "sql/expr/expression.h"
+#include <memory>
+#include <vector>
 
 AggregationLogicalOperator::AggregationLogicalOperator(const std::vector<std::string> &aggr_funcs) : aggr_funcs_(aggr_funcs)
 {}
+
+AggregationLogicalOperator::AggregationLogicalOperator(const std::vector<std::string> &aggr_funcs, const std::vector<Expression *> &expressions) : aggr_funcs_(aggr_funcs)
+{
+  for (Expression* expr : expressions) {
+    expressions_.emplace_back(expr);
+  }
+}

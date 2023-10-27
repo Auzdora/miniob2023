@@ -74,6 +74,7 @@ enum ConditionType{
   CON_ATTR_T,
   CON_SUBSELECT_T,
   CON_CALC_T,
+  CON_AGGR_T,
 };
 
 /**

@@ -41,6 +41,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   return expr;
 }
 
+int aggregation_cnt = 0;
+
 %}
 
 %define api.pure full
@@ -699,6 +701,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         std::reverse($$->selection.orderbys.begin(), $$->selection.orderbys.end());
         delete $8;
       }
+      aggregation_cnt = 0;
       free($4);
     }
     /* | SELECT select_attr FROM ID rel_list where ORDER BY order_by_list 
@@ -804,48 +807,48 @@ expression:
       $$ = new ExprSqlNode;
       $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1->expression, $3->expression, sql_string, &@$);
       // $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
-      $$->aggregations.swap($1->aggregations);
-      for (const auto &aggr : $3->aggregations) {
+      $$->aggregations.swap($3->aggregations);
+      for (const auto &aggr : $1->aggregations) {
         $$->aggregations.emplace_back(aggr);
       }
-      $$->attributes.swap($1->attributes);
-      for (const auto &rel : $3->attributes) {
+      $$->attributes.swap($3->attributes);
+      for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
     }
     | expression MINUS expression {
       $$ = new ExprSqlNode;
       $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1->expression, $3->expression, sql_string, &@$);
-      $$->aggregations.swap($1->aggregations);
-      for (const auto &aggr : $3->aggregations) {
+      $$->aggregations.swap($3->aggregations);
+      for (const auto &aggr : $1->aggregations) {
         $$->aggregations.emplace_back(aggr);
       }
-      $$->attributes.swap($1->attributes);
-      for (const auto &rel : $3->attributes) {
+      $$->attributes.swap($3->attributes);
+      for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
     }
     | expression '*' expression {
       $$ = new ExprSqlNode;
       $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1->expression, $3->expression, sql_string, &@$);
-      $$->aggregations.swap($1->aggregations);
-      for (const auto &aggr : $3->aggregations) {
+      $$->aggregations.swap($3->aggregations);
+      for (const auto &aggr : $1->aggregations) {
         $$->aggregations.emplace_back(aggr);
       }
-      $$->attributes.swap($1->attributes);
-      for (const auto &rel : $3->attributes) {
+      $$->attributes.swap($3->attributes);
+      for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
     }
     | expression '/' expression {
       $$ = new ExprSqlNode;
       $$->expression = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1->expression, $3->expression, sql_string, &@$);
-      $$->aggregations.swap($1->aggregations);
-      for (const auto &aggr : $3->aggregations) {
+      $$->aggregations.swap($3->aggregations);
+      for (const auto &aggr : $1->aggregations) {
         $$->aggregations.emplace_back(aggr);
       }
-      $$->attributes.swap($1->attributes);
-      for (const auto &rel : $3->attributes) {
+      $$->attributes.swap($3->attributes);
+      for (const auto &rel : $1->attributes) {
         $$->attributes.emplace_back(rel);
       }
     }
@@ -877,6 +880,8 @@ expression:
       $$->expression = new AggregationExpr($1->aggregation_name,$1->attribute_name);
       $$->expression->set_name(token_name(sql_string, &@$));
       $$->aggregations.emplace_back(*$1);
+      $$->expression->set_index(aggregation_cnt);
+      aggregation_cnt++;
       RelAttrSqlNode *rel_node = new RelAttrSqlNode;
       rel_node->attribute_name = $1->attribute_name;
       $$->attributes.push_back(*rel_node);
@@ -1101,6 +1106,9 @@ condition:
         case ExprType::ARITHMETIC: {
           $$->left_con_type = ConditionType::CON_CALC_T;
         } break;
+        case ExprType::AGGREGATION: {
+          $$->left_con_type = ConditionType::CON_AGGR_T;
+        } break;
         default: {
           return -1;
         } break;
@@ -1116,6 +1124,9 @@ condition:
         } break;
         case ExprType::ARITHMETIC: {
           $$->right_con_type = ConditionType::CON_CALC_T;
+        } break;
+        case ExprType::AGGREGATION: {
+          $$->right_con_type = ConditionType::CON_AGGR_T;
         } break;
         default: {
           return -1;

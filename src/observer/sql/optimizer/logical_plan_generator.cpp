@@ -160,7 +160,7 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   unique_ptr<LogicalOperator> project_oper;
-  if (contain_expression) {
+  if (contain_expression && all_aggr_funcs.empty()) {
     project_oper = std::make_unique<ProjectLogicalOperator>(all_fields, all_expressions);
   } else {
     project_oper = std::make_unique<ProjectLogicalOperator>(all_fields);
@@ -178,7 +178,7 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   if (!all_aggr_funcs.empty()) {
-    unique_ptr<LogicalOperator> aggr_oper(new AggregationLogicalOperator(all_aggr_funcs));
+    unique_ptr<LogicalOperator> aggr_oper(new AggregationLogicalOperator(all_aggr_funcs, all_expressions));
     aggr_oper->add_child(std::move(project_oper));
     logical_operator.swap(aggr_oper);
     return RC::SUCCESS;

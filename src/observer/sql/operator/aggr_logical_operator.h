@@ -14,7 +14,9 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,7 @@ class AggregationLogicalOperator : public LogicalOperator
 {
 public:
   AggregationLogicalOperator(const std::vector<std::string> &aggr_funcs);
+  AggregationLogicalOperator(const std::vector<std::string> &aggr_funcs, const std::vector<Expression *> &expressions);
   virtual ~AggregationLogicalOperator() = default;
 
   LogicalOperatorType type() const override

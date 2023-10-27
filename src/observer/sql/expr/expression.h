@@ -97,10 +97,13 @@ public:
    * @brief 表达式的名字，比如是字段名称，或者用户在执行SQL语句时输入的内容
    */
   virtual std::string name() const { return name_; }
+  virtual int index() const { return index_; }
+  virtual void set_index(int index) { index_ = index; }
   virtual void set_name(std::string name) { name_ = name; }
 
 private:
   std::string  name_;
+  int index_;
 };
 
 /**
