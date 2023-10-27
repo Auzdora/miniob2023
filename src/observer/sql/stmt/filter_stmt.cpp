@@ -196,6 +196,7 @@ RC FilterStmt::Init_filter_unit(
   case CON_SUBSELECT_T:
     {
       FilterObj filter_obj;
+      filter_obj.type = FilterObjType::SUBSELECT;
       filter_obj.expr = condition.left_expr_node.expression;   
       SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.left_expr_node.expression);
       subselect_expr->init_tables(tables,db);
@@ -204,6 +205,7 @@ RC FilterStmt::Init_filter_unit(
   case CON_SET_T:
     {
       FilterObj filter_obj;
+      filter_obj.type = SET;
       filter_obj.expr = condition.left_expr_node.expression;  
       filter_unit->set_left(filter_obj);
     }break;
@@ -245,6 +247,7 @@ RC FilterStmt::Init_filter_unit(
   case CON_SUBSELECT_T:
     {
       FilterObj filter_obj;
+      filter_obj.type = FilterObjType::SUBSELECT;
       filter_obj.expr = condition.right_expr_node.expression;   // TODO 指针空间被释放的问题吗
       SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.right_expr_node.expression);
       subselect_expr->init_tables(tables,db);
@@ -253,6 +256,7 @@ RC FilterStmt::Init_filter_unit(
   case CON_SET_T:
     {
       FilterObj filter_obj;
+      filter_obj.type = SET;
       filter_obj.expr = condition.right_expr_node.expression; 
       filter_unit->set_right(filter_obj);
     }break;

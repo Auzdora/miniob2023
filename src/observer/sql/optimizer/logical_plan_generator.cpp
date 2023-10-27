@@ -232,6 +232,15 @@ RC LogicalPlanGenerator::create_plan(
       case FilterObjType::CALC: {
         left.reset(filter_obj_left.expr);
       } break;
+      case FilterObjType::SUBSELECT: {
+        left.reset(filter_obj_left.expr);
+      } break;
+      case FilterObjType::SET: {
+        left.reset(filter_obj_left.expr);
+      } break;
+      default: {
+        return RC::INTERNAL;
+      } break;
     }
   
     switch (filter_obj_right.type) {
@@ -244,10 +253,16 @@ RC LogicalPlanGenerator::create_plan(
       case FilterObjType::CALC: {
         right.reset(filter_obj_right.expr);
       } break;
+      case FilterObjType::SUBSELECT: {
+        right.reset(filter_obj_right.expr);
+      } break;
+      case FilterObjType::SET: {
+        right.reset(filter_obj_right.expr);
+      } break;
+      default: {
+        return RC::INTERNAL;
+      } break;
     }
-
-    left.reset(filter_obj_left.expr);
-    right.reset(filter_obj_right.expr);
 
     if (left->type() == ExprType::SUBSELECT)
     {

@@ -29,6 +29,8 @@ enum FilterObjType
   FIELD,
   VALUE,
   CALC,
+  SUBSELECT,
+  SET,
 };
 struct FilterObj 
 {
