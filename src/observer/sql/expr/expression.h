@@ -46,6 +46,7 @@ enum class ExprType
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合函数
   SUBSELECT,    ///< 子查询
+  SET,          ///< 集合
 };
 
 /**
@@ -371,9 +372,6 @@ public:
   AttrType value_type() const override { return value_.attr_type(); }
 
   void get_value(Value &value) const { value = value_; }
-  // void get_phy_oper(std::unique_ptr<PhysicalOperator> &phy_oper) { 
-  //   phy_oper = std::unique_ptr<PhysicalOperator> (new ProjectPhysicalOperator(std::move(physical_operator_)));
-  // }
 
   void init_tables(std::unordered_map<std::string, Table *> *&tables,Db *db){ 
     tables_ = tables;
@@ -395,4 +393,48 @@ private:
   ParsedSqlNode *subselect_;
   Stmt *subselect_stmt_;
   std::unordered_map<std::string, Table *> *tables_;
+};
+
+
+
+/**
+ * @brief 集合表达式
+ * @ingroup Expression
+ */
+class SetExpr : public Expression 
+{
+public:
+  SetExpr() = default;
+  explicit SetExpr(std::vector<Expression*> &expr_set)
+  {
+    expr_set_.swap(expr_set);
+  }
+
+  virtual ~SetExpr(){
+    for (int i = 0; i < expr_set_.size();i++)// 是否需要对 epxr_set_ 做释放？
+    {
+      delete expr_set_[i];
+      expr_set_.clear();
+    }
+  };
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+  RC get_value(const Tuple &tuple, Value &value);
+
+  RC try_get_value(Value &value) const override { value = value_; return RC::SUCCESS; }
+
+  ExprType type() const override { return ExprType::SET; }
+
+  AttrType value_type() const override { return value_.attr_type(); }
+
+  void get_value(Value &value) const { value = value_; }
+
+  const Value &get_value() const { return value_; }
+
+  std::vector<Expression*> &get_expr_set(){ return expr_set_;}
+
+private:
+  Value value_;
+  std::vector<Expression*> expr_set_;
 };

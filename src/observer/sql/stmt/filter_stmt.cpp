@@ -181,9 +181,15 @@ RC FilterStmt::Init_filter_unit(Db *db, Table *default_table, std::unordered_map
   case CON_SUBSELECT_T:
     {
       FilterObj filter_obj;
-      filter_obj.expr = condition.left_expr_node.expression;   // TODO 指针空间被释放的问题吗
+      filter_obj.expr = condition.left_expr_node.expression;   
       SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.left_expr_node.expression);
       subselect_expr->init_tables(tables,db);
+      filter_unit->set_left(filter_obj);
+    }break;
+  case CON_SET_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.left_expr_node.expression;  
       filter_unit->set_left(filter_obj);
     }break;
   default:
@@ -223,6 +229,12 @@ RC FilterStmt::Init_filter_unit(Db *db, Table *default_table, std::unordered_map
       filter_obj.expr = condition.right_expr_node.expression;   // TODO 指针空间被释放的问题吗
       SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.right_expr_node.expression);
       subselect_expr->init_tables(tables,db);
+      filter_unit->set_right(filter_obj);
+    }break;
+  case CON_SET_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.right_expr_node.expression; 
       filter_unit->set_right(filter_obj);
     }break;
   default:

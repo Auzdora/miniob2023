@@ -182,6 +182,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <aggr_attr_list>      aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
+%type <expression_list>     set_expression
 %type <nullable>            nullable
 %type <index_list>          index_list
 %type <update_field>        update_field
@@ -801,6 +802,21 @@ expression_list:
       $$->emplace_back(*$1);
     }
     ;
+set_expression:
+     COMMA expression
+    {
+      $$ = new std::vector<ExprSqlNode>;
+      $$->emplace_back(*$2);
+    }
+    | COMMA expression set_expression{
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<ExprSqlNode>;
+      }
+      $$->emplace_back(*$2);
+    }
+
 expression:
     expression '+' expression {
       $$ = new ExprSqlNode;
@@ -853,6 +869,18 @@ expression:
     }
     | LBRACE expression RBRACE {
       $$ = $2;
+      $$->expression->set_name(token_name(sql_string, &@$));
+    }
+    | LBRACE expression set_expression RBRACE
+    {
+      $3->emplace_back(*$2);
+      std::reverse($3->begin(), $3->end());
+      $$ = new ExprSqlNode;
+      std::vector<Expression*> set;
+      for (int i = 0; i < $3->size(); i++){
+        set.push_back(std::move($3->at(i).expression));
+      }
+      $$->expression = new SetExpr(set);
       $$->expression->set_name(token_name(sql_string, &@$));
     }
     | MINUS expression {
@@ -1100,7 +1128,10 @@ condition:
       if ($1->expression->type() == ExprType::SUBSELECT)
       {
         $$->left_type = CON_SUBSELECT_T;
-      }else if ($1->attributes.size() > 0) {
+      }else if($1->expression->type() == ExprType::SET){
+        $$->left_type = CON_SET_T;
+      }
+      else if ($1->attributes.size() > 0) {
         $$->left_type = CON_ATTR_T;
       } else {
         $$->left_type = CON_VALUE_T;
@@ -1110,7 +1141,10 @@ condition:
       if ($3->expression->type() == ExprType::SUBSELECT)
       {
         $$->right_type = CON_SUBSELECT_T;
-      }else if ($3->attributes.size() > 0) {
+      }else if($3->expression->type() == ExprType::SET){
+        $$->right_type = CON_SET_T;
+      }
+      else if ($3->attributes.size() > 0) {
         $$->right_type = CON_ATTR_T;
       } else {
         $$->right_type = CON_VALUE_T;
