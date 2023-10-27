@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "sql/expr/tuple.h"
 #include "sql/operator/aggr_physical_operator.h"
+#include "sql/parser/value.h"
 
 AggregationPhysicalOperator::AggregationPhysicalOperator(const std::vector<std::string> &aggr_funcs)
     : aggr_funcs_(aggr_funcs)
@@ -63,19 +64,24 @@ RC AggregationPhysicalOperator::next()
 
   // finish all aggregation
   for (int i = 0; i < aggr_funcs_.size(); i++) {
-      if (aggr_funcs_[i] == "avg") {
-        if (!avg_count_results_.empty())
-        {
-          if (aggr_results_[i].is_null())
-            aggr_results_[i].set_null();
-          else
-            aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
-        }
-        else{
+    if (aggr_funcs_[i] == "avg") {
+      if (!avg_count_results_.empty())
+      {
+        if (aggr_results_[i].is_null())
           aggr_results_[i].set_null();
-        }
+        else
+          aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
+      }
+      else{
+        aggr_results_[i].set_null();
       }
     }
+    if (aggr_funcs_[i] == "count") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value(0));
+      }
+    }
+  }
   tuple_.set_cells(aggr_results_);
 
   // finish aggr calculation, then do expression
