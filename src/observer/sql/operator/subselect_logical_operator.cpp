@@ -9,13 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2022/12/13.
+// Created by Daijinxiang on 2023/10/26.
 //
 
-#include "sql/operator/predicate_logical_operator.h"
-
-PredicateLogicalOperator::PredicateLogicalOperator(std::unique_ptr<Expression> expression)
-{
-  expressions_.emplace_back(std::move(expression));
-}
 

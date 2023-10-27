@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 
 #include "storage/field/field.h"
+#include "sql/stmt/select_stmt.h"
 #include "sql/parser/value.h"
 #include "common/log/log.h"
 
@@ -44,6 +45,7 @@ enum class ExprType
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合函数
+  SUBSELECT,    ///< 子查询
 };
 
 /**
@@ -338,4 +340,61 @@ public:
 private:
   std::string table_name_;            // for expression parser
   std::string field_name_;            // for expression parser
+};
+
+/**
+ * @brief 子查询表达式
+ * @ingroup Expression
+ */
+class LogicalOperator;
+class PhysicalOperator;
+class SubSelectExpr : public Expression 
+{
+public:
+  SubSelectExpr() = default;
+  explicit SubSelectExpr(ParsedSqlNode *&subselect) : subselect_(subselect)
+  {}
+
+  virtual ~SubSelectExpr(){
+    if (subselect_ != nullptr)
+      delete subselect_;
+    if (subselect_stmt_ != nullptr)
+      delete subselect_stmt_;
+  };
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+  RC get_value(const Tuple &tuple, Value &value);
+
+  RC try_get_value(Value &value) const override { value = value_; return RC::SUCCESS; }
+
+  ExprType type() const override { return ExprType::SUBSELECT; }
+
+  AttrType value_type() const override { return value_.attr_type(); }
+
+  void get_value(Value &value) const { value = value_; }
+  // void get_phy_oper(std::unique_ptr<PhysicalOperator> &phy_oper) { 
+  //   phy_oper = std::unique_ptr<PhysicalOperator> (new ProjectPhysicalOperator(std::move(physical_operator_)));
+  // }
+
+  void init_tables(std::unordered_map<std::string, Table *> *&tables,Db *db){ 
+    tables_ = tables;
+    db_ = db;
+  }
+
+  SelectSqlNode get_subsqlNode() { return subselect_->selection; }
+
+
+  RC create_stmt();
+  Stmt *&get_stmt() { return subselect_stmt_; }
+
+  const Value &get_value() const { return value_; }
+
+private:
+  Value value_;
+  Tuple *tuple_ = nullptr;
+  Db * db_ = nullptr;
+  ParsedSqlNode *subselect_;
+  Stmt *subselect_stmt_;
+  std::unordered_map<std::string, Table *> *tables_;
 };

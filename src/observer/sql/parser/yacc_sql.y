@@ -109,6 +109,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         BY
         ASC
         MINUS
+        IN
+        EXISTS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -883,7 +885,12 @@ expression:
       delete $1;
       delete rel_node;
     }
-    ;
+    | select_stmt{
+      $$ = new ExprSqlNode;
+      ParsedSqlNode * subsql_node = std::move($1);
+      $$->expression = new SubSelectExpr(subsql_node);   
+      $$->expression->set_name(token_name(sql_string, &@$));
+    }
     ;
 
 select_attr:
@@ -1090,16 +1097,23 @@ condition:
       $$ = new ConditionSqlNode;
       $$->comp = $2;
       $$->left_expr_node = *$1;
-      if ($1->attributes.size() > 0) {
-        $$->left_is_attr = 1;
+      if ($1->expression->type() == ExprType::SUBSELECT)
+      {
+        $$->left_type = CON_SUBSELECT_T;
+      }else if ($1->attributes.size() > 0) {
+        $$->left_type = CON_ATTR_T;
       } else {
-        $$->left_is_attr = 0;
+        $$->left_type = CON_VALUE_T;
       }
+      
       $$->right_expr_node = *$3;
-      if ($3->attributes.size() > 0) {
-        $$->right_is_attr = 1;
+      if ($3->expression->type() == ExprType::SUBSELECT)
+      {
+        $$->right_type = CON_SUBSELECT_T;
+      }else if ($3->attributes.size() > 0) {
+        $$->right_type = CON_ATTR_T;
       } else {
-        $$->right_is_attr = 0;
+        $$->right_type = CON_VALUE_T;
       }
     }
     /* rel_attr comp_op value
@@ -1163,6 +1177,8 @@ comp_op:
     | NOT LIKE { $$ = NOT_LIKE_OP;}
     | IS { $$ = IS_OP;}
     | IS NOT { $$ = IS_NOT_OP;}
+    | IN {$$ = IN_OP;}
+    | NOT IN { $$ = NOT_IN_OP;}
     ;
 
 load_data_stmt:

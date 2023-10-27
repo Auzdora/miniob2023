@@ -91,7 +91,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
-  if (condition.left_is_attr) {
+  if (condition.left_type == CON_ATTR_T) {
     Table *table = nullptr;
     const FieldMeta *field = nullptr;
     rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
@@ -102,13 +102,13 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     FilterObj filter_obj;
     filter_obj.init_attr(Field(table, field));
     filter_unit->set_left(filter_obj);
-  } else {
+  } else if(condition.left_type == CON_VALUE_T) {
     FilterObj filter_obj;
     filter_obj.init_value(condition.left_value);
     filter_unit->set_left(filter_obj);
   }
 
-  if (condition.right_is_attr) {
+  if (condition.right_type == CON_ATTR_T) {
     Table *table = nullptr;
     const FieldMeta *field = nullptr;
     rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
@@ -119,14 +119,13 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     FilterObj filter_obj;
     filter_obj.init_attr(Field(table, field));
     filter_unit->set_right(filter_obj);
-  } else {
+  } else if(condition.right_type == CON_VALUE_T) {
     FilterObj filter_obj;
     filter_obj.init_value(condition.right_value);
     filter_unit->set_right(filter_obj);
   }
 
   filter_unit->set_comp(comp);
-
   // 检查两个类型是否能够比较
   return rc;
 }
@@ -143,45 +142,93 @@ RC FilterStmt::create_filter_unit_expr(Db *db, Table *default_table, std::unorde
   }
 
   filter_unit = new FilterUnit;
-
-  if (condition.left_is_attr) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.left_expr_node.attributes[0], table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_left(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    ValueExpr *value_expr = static_cast<ValueExpr*>(condition.left_expr_node.expression);
-    filter_obj.init_value(value_expr->get_value());
-    filter_unit->set_left(filter_obj);
-  }
-
-  if (condition.right_is_attr) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.right_expr_node.attributes[0], table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_right(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    ValueExpr *value_expr = static_cast<ValueExpr*>(condition.right_expr_node.expression);
-    filter_obj.init_value(value_expr->get_value());
-    filter_unit->set_right(filter_obj);
-  }
-
+  rc = Init_filter_unit(db,default_table,tables,condition,filter_unit);
   filter_unit->set_comp(comp);
-
   // 检查两个类型是否能够比较
+  return rc;
+}
+
+RC FilterStmt::Init_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+    const ConditionSqlNode &condition, FilterUnit *&filter_unit){
+  RC rc = RC::SUCCESS;
+
+  // 左expression
+  switch (condition.left_type)
+  {
+  case CON_ATTR_T:
+    {
+      Table *table = nullptr;
+      const FieldMeta *field = nullptr;
+      rc = get_table_and_field(db, default_table, tables, condition.left_expr_node.attributes[0], table, field);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("cannot find attr");
+        return rc;
+      }
+      FilterObj filter_obj;
+      filter_obj.init_attr(Field(table, field));
+      filter_obj.expr = new FieldExpr(Field(table, field));
+      filter_unit->set_left(filter_obj);
+    }
+    break;
+  case CON_VALUE_T:
+    {
+      FilterObj filter_obj;
+      ValueExpr *value_expr = static_cast<ValueExpr*>(condition.left_expr_node.expression);
+      filter_obj.init_value(value_expr->get_value());
+      filter_obj.expr = value_expr;
+      filter_unit->set_left(filter_obj);
+    }break;
+  case CON_SUBSELECT_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.left_expr_node.expression;   // TODO 指针空间被释放的问题吗
+      SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.left_expr_node.expression);
+      subselect_expr->init_tables(tables,db);
+      filter_unit->set_left(filter_obj);
+    }break;
+  default:
+    return RC::INTERNAL;
+    break;
+  }
+
+  // 右expression
+  switch (condition.right_type)
+  {
+  case CON_ATTR_T:
+    {
+      Table *table = nullptr;
+      const FieldMeta *field = nullptr;
+      rc = get_table_and_field(db, default_table, tables, condition.right_expr_node.attributes[0], table, field);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("cannot find attr");
+        return rc;
+      }
+      FilterObj filter_obj;
+      filter_obj.init_attr(Field(table, field));
+      filter_obj.expr = new FieldExpr(Field(table, field));
+      filter_unit->set_right(filter_obj);
+    }
+    break;
+  case CON_VALUE_T:
+    {
+      FilterObj filter_obj;
+      ValueExpr *value_expr = static_cast<ValueExpr*>(condition.right_expr_node.expression);
+      filter_obj.init_value(value_expr->get_value());
+      filter_obj.expr = value_expr;
+      filter_unit->set_right(filter_obj);
+    }break;
+  case CON_SUBSELECT_T:
+    {
+      FilterObj filter_obj;
+      filter_obj.expr = condition.right_expr_node.expression;   // TODO 指针空间被释放的问题吗
+      SubSelectExpr *subselect_expr =  static_cast<SubSelectExpr*>(condition.right_expr_node.expression);
+      subselect_expr->init_tables(tables,db);
+      filter_unit->set_right(filter_obj);
+    }break;
+  default:
+    return RC::INTERNAL;
+    break;
+  }
+
   return rc;
 }

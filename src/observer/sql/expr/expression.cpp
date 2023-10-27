@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/expr/expression.h"
+// #include "sql/optimizer/logical_plan_generator.h"
+// #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/expr/tuple.h"
 #include "sql/parser/parse_defs.h"
 
@@ -310,3 +312,20 @@ RC ArithmeticExpr::try_get_value(Value &value) const {
  RC AggregationExpr::get_value(const Tuple &tuple, Value &value) const{
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
  }
+
+
+
+ ///////////////////////////////////////////////////////////////////////////////////////////
+
+ RC SubSelectExpr::get_value(const Tuple &tuple, Value &value) const{
+  return RC::INTERNAL;
+ }
+
+//TODO 无限递归
+ RC SubSelectExpr::create_stmt(){
+  Stmt * stmt  =nullptr;
+  RC rc = SelectStmt::create(db_,this->get_subsqlNode(),stmt);
+  subselect_stmt_ = stmt;
+  return rc;
+ }
+

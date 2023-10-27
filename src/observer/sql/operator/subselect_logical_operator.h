@@ -9,13 +9,27 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2022/12/13.
+// Created by Daijinxiang on 2023/10/26.
 //
 
-#include "sql/operator/predicate_logical_operator.h"
+#pragma once
+#include "logical_operator.h"
+#include "sql/expr/expression.h"
+#include "sql/parser/value.h"
+#include <vector>
 
-PredicateLogicalOperator::PredicateLogicalOperator(std::unique_ptr<Expression> expression)
+/**
+ * @brief 子查询逻辑算子
+ * @ingroup LogicalOperator
+ */
+class SubselectLogicalOperator : public LogicalOperator
 {
-  expressions_.emplace_back(std::move(expression));
-}
+public:
+  SubselectLogicalOperator(){};
+  virtual ~SubselectLogicalOperator() = default;
 
+  LogicalOperatorType type() const override
+  {
+    return LogicalOperatorType::SUBSELECT;
+  }
+};

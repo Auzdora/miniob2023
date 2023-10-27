@@ -43,7 +43,7 @@ struct FilterObj
     this->value = value;
   }
 
-  void init_expression(Expression *expr)
+  void init_expression(Expression *&expr)
   {
     is_attr = false;
     this->expr = expr;
@@ -70,10 +70,12 @@ public:
   void set_left(const FilterObj &obj)
   {
     left_ = obj;
+    left_.expr = obj.expr;
   }
   void set_right(const FilterObj &obj)
   {
     right_ = obj;
+    right_.expr = obj.expr;
   }
 
   const FilterObj &left() const
@@ -116,6 +118,8 @@ public:
   
   static RC create_filter_unit_expr(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
+  static RC Init_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+    const ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
