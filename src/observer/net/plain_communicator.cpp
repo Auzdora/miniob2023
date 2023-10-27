@@ -105,7 +105,7 @@ RC PlainCommunicator::write_state(SessionEvent *event, bool &need_disconnect)
     snprintf(buf, buf_size, "%s > %s\n", strrc(sql_result->return_code()), state_string.c_str());
   }
 
-  RC rc = writer_->writen(buf, strlen(buf));
+  RC rc = writer_->writen(buf, strlen(buf) + 1);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to send data to client. err=%s", strerror(errno));
     need_disconnect = true;
@@ -159,10 +159,7 @@ RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
 {
   RC rc = write_result_internal(event, need_disconnect);
   if (!need_disconnect) {
-     RC rc1 = write_debug(event, need_disconnect);
-    if (OB_FAIL(rc1)) {
-      LOG_WARN("failed to send debug info to client. rc=%s, err=%s", strrc(rc), strerror(errno));
-    }
+     (void)write_debug(event, need_disconnect);
   }
   writer_->flush(); // TODO handle error
   return rc;
