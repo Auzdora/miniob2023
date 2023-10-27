@@ -281,17 +281,19 @@ RC PredicatePhysicalOperator::do_compare_expr(Tuple &tuple,Value &value){
             if (tuple->cell_num() == 0){
               left_value.set_null();
             }
-            return RC::INTERNAL;
+            else{
+              return RC::INTERNAL;
+            }
+          }else{
+            tuple->cell_at(0,left_value);
           }
-          tuple->cell_at(0,left_value);
+
           // 有多个值
           if (RC::SUCCESS  == left_suboper->next())
             return RC::INTERNAL;
         }else{
-          // 没有值  默认表达式不成立
-          value.set_boolean(false);
-          rc = left_suboper->close();
-          return rc;
+          // 没有值  返回null
+          left_value.set_null();
         }
 
       }else{
@@ -316,18 +318,19 @@ RC PredicatePhysicalOperator::do_compare_expr(Tuple &tuple,Value &value){
           {
             if (tuple->cell_num() == 0){
               right_value.set_null();
+            }else{
+              return RC::INTERNAL;
             }
-            return RC::INTERNAL;
+          }else{
+            tuple->cell_at(0,right_value);
           }
-          tuple->cell_at(0,right_value);
+
           // 有多个值
           if (RC::SUCCESS  == right_suboper->next())
             return RC::INTERNAL;
         }else{
-          // 没有值  默认表达式不成立
-          value.set_boolean(false);
-          rc = right_suboper->close();
-          return rc;
+          // 没有值  返回null
+          right_value.set_null();
         }
 
       }else{
