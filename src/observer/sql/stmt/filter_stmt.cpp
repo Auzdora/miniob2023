@@ -272,5 +272,9 @@ RC FilterStmt::Init_filter_unit(
     filter_obj.expr->init(db, default_table);
     filter_unit->set_right(filter_obj);
   } break;
+  default: {
+    return RC::INTERNAL;
+  } break;
   }
+  return rc;
 }
