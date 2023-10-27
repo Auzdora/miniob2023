@@ -321,7 +321,7 @@ RC ArithmeticExpr::try_get_value(Value &value) const {
   return RC::INTERNAL;
  }
 
-//TODO 无限递归
+
  RC SubSelectExpr::create_stmt(){
   Stmt * stmt  =nullptr;
   RC rc = SelectStmt::create(db_,this->get_subsqlNode(),stmt);

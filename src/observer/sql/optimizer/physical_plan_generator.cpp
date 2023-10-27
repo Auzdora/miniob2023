@@ -206,8 +206,18 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper,
 
   unique_ptr<Expression> expression = std::move(expressions.front());
   oper = unique_ptr<PhysicalOperator>(
-      new PredicatePhysicalOperator(std::move(expression)));
+      new PredicatePhysicalOperator(std::move(expression),pred_oper.get_subselect_expr_names()));
   oper->add_child(std::move(child_phy_oper));
+  for (int i = 0; i < children_opers.size() - 1; i++){
+    unique_ptr<PhysicalOperator> subchild_oper;
+    RC rc = create(*children_opers[i], subchild_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create child operator of predicate operator. rc=%s",
+              strrc(rc));
+      return rc;
+    }
+    oper->add_child(std::move(subchild_oper));
+  }
   return rc;
 }
 

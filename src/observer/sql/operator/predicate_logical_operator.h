@@ -31,5 +31,14 @@ public:
   {
     return LogicalOperatorType::PREDICATE;
   }
+  void set_subselect_expr_name(std::vector<std::string> name){
+    if (!name.empty())
+      subselect_expr_names_.swap(name);
+  }
+  std::vector<std::string> &get_subselect_expr_names(){
+    return subselect_expr_names_;
+  }
 
+private:
+  std::vector<std::string> subselect_expr_names_;
 };

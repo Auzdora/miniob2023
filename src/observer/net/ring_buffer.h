@@ -61,6 +61,15 @@ public:
    */
   RC forward(int32_t size);
 
+  RC clear(){
+    auto size = buffer_.size();
+    buffer_.clear();
+    buffer_.resize(size);
+    data_size_ = 0;
+    write_pos_ = 0;
+    return RC::SUCCESS;
+  }
+
   /**
    * @brief 将数据写入缓存
    * @param buf 待写入的数据

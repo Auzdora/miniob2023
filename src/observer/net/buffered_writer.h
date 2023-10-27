@@ -43,6 +43,8 @@ public:
    */
   RC write(const char *data, int32_t size, int32_t &write_size);
 
+  RC clear() { return buffer_.clear();}
+
   /**
    * @brief 写数据到文件/socket，全部写入成功返回成功
    * @details 与write的区别就是会尝试一直写直到写成成功或者有不可恢复的错误

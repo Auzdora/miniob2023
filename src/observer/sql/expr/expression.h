@@ -346,8 +346,6 @@ private:
  * @brief 子查询表达式
  * @ingroup Expression
  */
-class LogicalOperator;
-class PhysicalOperator;
 class SubSelectExpr : public Expression 
 {
 public:

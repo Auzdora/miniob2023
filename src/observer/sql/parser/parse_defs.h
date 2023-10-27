@@ -68,6 +68,8 @@ enum CompOp {
   IS_NOT_OP,
   IN_OP,
   NOT_IN_OP,
+  EXISTS_OP,
+  NOT_EXISTS_OP,
   NO_OP,
 };
 

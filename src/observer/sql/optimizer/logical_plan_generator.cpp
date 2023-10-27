@@ -195,6 +195,7 @@ RC LogicalPlanGenerator::create_plan(
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   std::vector<std::unique_ptr<LogicalOperator>> subselect_lopers;
+  std::vector<std::string> subselect_expr_names;
   for (const FilterUnit *filter_unit : filter_units) {
     const FilterObj &filter_obj_left = filter_unit->left();
     const FilterObj &filter_obj_right = filter_unit->right();
@@ -221,6 +222,7 @@ RC LogicalPlanGenerator::create_plan(
       if (RC::SUCCESS != create(subselect_expr->get_stmt(),subselect_loper))
         return RC::INTERNAL;
       subselect_lopers.emplace_back(std::move(subselect_loper));
+      subselect_expr_names.push_back(subselect_expr->name());
     }
 
     if (right->type() == ExprType::SUBSELECT)
@@ -232,6 +234,7 @@ RC LogicalPlanGenerator::create_plan(
       if (RC::SUCCESS != create(subselect_expr->get_stmt(),subselect_loper))
         return RC::INTERNAL;
       subselect_lopers.emplace_back(std::move(subselect_loper));
+      subselect_expr_names.push_back(subselect_expr->name());
     }
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(
@@ -246,6 +249,7 @@ RC LogicalPlanGenerator::create_plan(
     predicate_oper = unique_ptr<PredicateLogicalOperator>(
         new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
+  predicate_oper->set_subselect_expr_name(subselect_expr_names);
   logical_operator = std::move(predicate_oper);
   
   for (int i = 0;i < subselect_lopers.size();i++)

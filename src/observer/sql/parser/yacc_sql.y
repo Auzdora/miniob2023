@@ -1116,6 +1116,40 @@ condition:
         $$->right_type = CON_VALUE_T;
       }
     }
+    | EXISTS expression
+    {
+      $$ = new ConditionSqlNode;
+      $$->comp = CompOp::EXISTS_OP;
+      ExprSqlNode * left = new ExprSqlNode;
+      left->expression = new ValueExpr(Value(1));
+      left->expression->set_name("1");
+      $$->left_expr_node = *left;
+      $$->left_type = CON_VALUE_T;
+      $$->right_expr_node = *$2;
+      if ($2->expression->type() == ExprType::SUBSELECT)
+      {
+        $$->right_type = CON_SUBSELECT_T;
+      }
+      else
+        return -1; /// exists 目前只考虑后面是子查询语句的情况
+    }
+    | NOT EXISTS expression
+    {
+      $$ = new ConditionSqlNode;
+      $$->comp = CompOp::NOT_EXISTS_OP;
+      ExprSqlNode * left = new ExprSqlNode;
+      left->expression = new ValueExpr(Value(1));
+      left->expression->set_name("1");
+      $$->left_expr_node = *left;
+      $$->left_type = CON_VALUE_T;
+      $$->right_expr_node = *$3;
+      if ($3->expression->type() == ExprType::SUBSELECT)
+      {
+        $$->right_type = CON_SUBSELECT_T;
+      }
+      else
+        return -1; /// exists 目前只考虑后面是子查询语句的情况
+    }
     /* rel_attr comp_op value
     {
       $$ = new ConditionSqlNode;
