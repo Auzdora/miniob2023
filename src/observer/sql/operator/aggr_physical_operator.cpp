@@ -30,6 +30,7 @@ RC AggregationPhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
   first_call_ = true;
+
   return children_[0]->open(trx);
 }
 
@@ -200,6 +201,8 @@ RC AggregationPhysicalOperator::close()
   if (!children_.empty()) {
     children_[0]->close();
   }
+  avg_count_results_.clear();
+  aggr_results_.clear();
   return RC::SUCCESS;
 }
 
