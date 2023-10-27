@@ -28,7 +28,6 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
-#include "sql/operator/subselect_logical_operator.h"
 
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/calc_stmt.h"
