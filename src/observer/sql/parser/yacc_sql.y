@@ -1074,7 +1074,6 @@ func:
       $$ = new FuncSqlNode;
       if ($5 != nullptr) {
         $$->alias = $5;
-        free($5);
       }
       $$->function_type = FunctionType::LENGTH_T;
       $$->attribute_name = $3;
@@ -1085,7 +1084,6 @@ func:
       $$ = new FuncSqlNode;
       if ($7 != nullptr) {
         $$->alias = $7;
-        free($7);
       }
       $$->function_type = FunctionType::LENGTH_T;
       $$->relation_name = $3;
@@ -1102,6 +1100,41 @@ func:
       $$->function_type = FunctionType::LENGTH_T;
       $$->value = *$3;
       $$->is_attr = false;
+      delete $3;
+    }
+    | ROUND LBRACE ID RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->function_type = FunctionType::ROUND_T;
+      $$->attribute_name = $3;
+      $$->param = Value(0);
+      free($3);
+      $$->is_attr = true;
+    }
+    | ROUND LBRACE ID DOT ID RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->function_type = FunctionType::ROUND_T;
+      $$->relation_name = $3;
+      $$->attribute_name = $5;
+      $$->is_attr = true;
+      $$->param = Value(0);
+      free($3);
+      free($5);
+    }
+    | ROUND LBRACE value RBRACE alias {
+      $$ = new FuncSqlNode;
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->function_type = FunctionType::ROUND_T;
+      $$->value = *$3;
+      $$->is_attr = false;
+      $$->param = Value(0);
       delete $3;
     }
     | ROUND LBRACE ID COMMA value RBRACE alias {
