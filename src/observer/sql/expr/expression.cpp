@@ -435,7 +435,7 @@ std::string FunctionExpr::format_date(int date_int, const std::string& format) c
                     static const std::array<std::string, 31> suffixes = {
                         "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th",
                         "th", "th", "th", "th", "th", "th", "th", "th", "th", "th",
-                        "th", "th", "rd", "th", "th", "th", "th", "th", "th", "th", "st"
+                        "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "st"
                     };
                     result += std::to_string(day) + suffixes[day - 1];
                 } break;
