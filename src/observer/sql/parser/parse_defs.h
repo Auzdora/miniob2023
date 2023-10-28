@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <stddef.h>
 #include <string>
 #include <vector>
-
+#include <unordered_map>
 #include "sql/parser/value.h"
 
 class Expression;
