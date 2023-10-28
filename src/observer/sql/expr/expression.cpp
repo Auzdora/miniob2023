@@ -25,6 +25,21 @@ RC FieldExpr::get_value(const Tuple &tuple, Value &value) const {
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
 }
 
+RC FieldExpr::get_values(const Tuple &tuple, std::vector<Value> &values) const {
+  std::vector<Value> vals;
+  const TableMeta &table_meta = star_table_->table_meta();
+  const int user_field_start_idx = table_meta.sys_field_num() + table_meta.custom_fields_num();
+  for (int i = user_field_start_idx; i < star_table_->table_meta().field_num(); i++) {
+    Value tmp_val;
+    const FieldMeta *field_meta = star_table_->table_meta().field(i);
+    tuple.find_cell(TupleCellSpec(table_name(), field_meta->name()), tmp_val);
+    vals.push_back(tmp_val);
+  }
+  values = vals;
+  return RC::SUCCESS;
+}
+
+
 RC ValueExpr::get_value(const Tuple &tuple, Value &value) const {
   value = value_;
   return RC::SUCCESS;

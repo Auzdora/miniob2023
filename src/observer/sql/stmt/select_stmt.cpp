@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/stmt/select_stmt.h"
+#include "sql/expr/expression.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
@@ -128,6 +129,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         for (Table *table : tables) {
           wildcard_fields(table, query_fields);
         }
+      } else if (0 != strcmp(table_name, "*") && 0 == strcmp(field_name, "*")){
+        Table *table = table_map.at(table_name);
+        wildcard_fields(table, query_fields);
       } else {
         auto iter = table_map.find(table_name);
         if (iter == table_map.end()) {
@@ -265,6 +269,14 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       continue;
     }
     expr->init(db, default_table, &table_map);
+    if (expr->star_expr()) {
+      const auto &star_expr = static_cast<FieldExpr *>(expr);
+      for (const auto &name : star_expr->names()) {
+        query_expressions_names.push_back(name);
+      }
+      query_expressions.push_back(expr);
+      continue;
+    }
     query_expressions.push_back(expr);
     query_expressions_names.push_back(expr->name());
   }

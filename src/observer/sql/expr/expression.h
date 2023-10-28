@@ -104,9 +104,12 @@ public:
   virtual int index() const { return index_; }
   virtual void set_index(int index) { index_ = index; }
   virtual void set_name(std::string name) { name_ = name; }
+  virtual void set_star_flag(bool flag) { star_expr_ = flag; }
+  virtual bool star_expr() { return star_expr_; }
 
 private:
   std::string name_;
+  bool star_expr_{false};
   int index_;
 };
 
@@ -133,6 +136,19 @@ public:
 
     // Table *new_table = db->find_table(table_name_.c_str());
     Table *new_table = tables->at(table_name_);
+    if (0 == strcmp(field_name_.c_str(), "*")) {
+      set_star_flag(true);
+      star_table_ = new_table;
+      table_name_ = new_table->name();
+      const TableMeta &table_meta = star_table_->table_meta();
+      const int user_field_start_idx = table_meta.sys_field_num() + table_meta.custom_fields_num();
+      for (int i = user_field_start_idx; i < star_table_->table_meta().field_num(); i++) {
+        const FieldMeta *field_meta = star_table_->table_meta().field(i);
+        field_names_.push_back(field_meta->name());
+      }
+      std::reverse(field_names_.begin(), field_names_.end());
+      return;
+    }
     const FieldMeta *field_meta =
         new_table->table_meta().field(field_name_.c_str());
     field_.set_table(new_table);
@@ -164,9 +180,13 @@ public:
   const char *field_name() const { return field_name_.c_str(); }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
+  RC get_values(const Tuple &tuple, std::vector<Value> &values) const;
+  const std::vector<std::string> &names() { return field_names_; }
 
 private:
   Field field_;
+  Table *star_table_;
+  std::vector<std::string> field_names_;   // for table.* case, special consideration
   std::string table_name_; // for expression parser
   std::string field_name_; // for expression parser
 };

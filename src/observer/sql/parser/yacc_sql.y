@@ -1056,6 +1056,15 @@ rel_attr:
       }
       free($1);
     }
+    | ID DOT '*' alias {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      if ($4 != nullptr) {
+        $$->attribute_alias = $4;
+      }
+      free($1);
+    }
     | ID DOT ID alias {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
