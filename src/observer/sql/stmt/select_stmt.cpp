@@ -208,9 +208,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       aggr_funcs.push_back(aggr_attr.aggregation_name);
       continue;
     }
-    const FieldMeta *field_meta = default_table->table_meta().field(aggr_attr.attribute_name.c_str());
+    Table *table;
+    if (default_table != nullptr) {
+      table = default_table;
+    } else {
+      table = table_map.at(aggr_attr.relation_name);;
+    }
+    const FieldMeta *field_meta = table->table_meta().field(aggr_attr.attribute_name.c_str());
     if (nullptr == field_meta) {
-      LOG_WARN("no such field. field=%s.%s.%s", db->name(), default_table->name(), aggr_attr.attribute_name.c_str());
+      LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), aggr_attr.attribute_name.c_str());
       return RC::SCHEMA_FIELD_MISSING;
     }
     aggr_funcs.push_back(aggr_attr.aggregation_name);

@@ -104,10 +104,10 @@ RC LogicalPlanGenerator::create_plan(
   int inner_join_idx = 0;
   const std::vector<std::string> &all_aggr_funcs = select_stmt->aggr_funcs();
   // only support aggr on one table for now
-  if (!all_aggr_funcs.empty() && tables.size() > 1) {
-    LOG_WARN("do not support aggregation on multiple tables");
-    return RC::INTERNAL;
-  }
+  // if (!all_aggr_funcs.empty() && tables.size() > 1) {
+  //   LOG_WARN("do not support aggregation on multiple tables");
+  //   return RC::INTERNAL;
+  // }
 
   bool contain_expression = false;
   if (select_stmt->query_fields().size() > select_stmt->query_expressions().size()) {

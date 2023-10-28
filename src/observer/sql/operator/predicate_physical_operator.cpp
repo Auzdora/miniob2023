@@ -69,8 +69,10 @@ RC PredicatePhysicalOperator::next()
       case ExprType::COMPARISON:
         {
           rc = do_compare_expr(*join_tuple,value);
-          if (rc != RC::SUCCESS)
+          if (rc != RC::SUCCESS) {
+            clear_global_tuple();
             return rc;
+          }
         }
         break;
       case ExprType::CONJUNCTION:
@@ -84,14 +86,19 @@ RC PredicatePhysicalOperator::next()
             case ExprType::COMPARISON:
              {
               rc = do_compare_expr(*join_tuple,value);
-              if (rc != RC::SUCCESS)
+              if (rc != RC::SUCCESS) {
+                clear_global_tuple();
                 return rc;
-              if (!value.get_boolean())
+              }
+              if (!value.get_boolean()) {
+                clear_global_tuple();
                 return rc;
+              }
              } break;
-            default:
+            default: {
+              clear_global_tuple();
               return RC::INTERNAL;
-              break;
+            } break;
             }
           }
         }
@@ -101,8 +108,7 @@ RC PredicatePhysicalOperator::next()
       }
       join_tuple->set_left(nullptr);
       join_tuple->set_right(nullptr);
-      parent_tuple = nullptr;
-      sub_select_tuple = nullptr;
+      clear_global_tuple();
     }
     else {
       if (sub_select_tuple == nullptr) {
@@ -110,18 +116,15 @@ RC PredicatePhysicalOperator::next()
         join_tuple->set_right(sub_select_tuple);
       }
       rc = expression_->get_value(*join_tuple, value);
-      parent_tuple = nullptr;
-      sub_select_tuple = nullptr;
+      clear_global_tuple();
     }
     if (rc != RC::SUCCESS) {
-      parent_tuple = nullptr;
-      sub_select_tuple = nullptr;
+      clear_global_tuple();
       return rc;
     }
 
     if (value.get_boolean()) {
-      parent_tuple = nullptr;
-      sub_select_tuple = nullptr;
+      clear_global_tuple();
       return rc;
     }
   }

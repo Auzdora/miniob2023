@@ -117,6 +117,11 @@ int aggregation_cnt = 0;
         AS
         IN
         EXISTS
+        COUNT
+        MIN
+        MAX
+        SUM
+        AVG
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -150,6 +155,7 @@ int aggregation_cnt = 0;
   std::vector<UpdateFieldNode> *    update_field_list;
   char *                            string;
   char *                            alias;
+  char *                            aggr_func;
   int                               number;
   float                             floats;
   bool                              nullable;
@@ -167,6 +173,7 @@ int aggregation_cnt = 0;
 %type <condition>           condition
 %type <value>               value
 %type <alias>               alias
+%type <aggr_func>           aggr_func
 %type <expr_value>          expr_value
 %type <number>              number
 %type <comp>                comp_op
@@ -1126,39 +1133,64 @@ order_type:
     | DESC { $$ = DESC_T; }
 
 aggr_attr:
-    ID LBRACE '*' RBRACE {
-      if (strcmp($1, "count") != 0) {
-        return -1;
-      }
+    COUNT LBRACE '*' RBRACE alias {
       $$ = new AggrAttrSqlNode;
       $$->aggregation_name = "count";
-      $$->attribute_name   = "*";
-      free($1);
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->attribute_name = "*";
     }
-    | ID LBRACE ID RBRACE {
+    | COUNT LBRACE ID RBRACE alias {
+      $$ = new AggrAttrSqlNode;
+      $$->aggregation_name = "count";
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->attribute_name = $3;
+    }
+    | aggr_func LBRACE ID RBRACE alias {
       $$ = new AggrAttrSqlNode;
       $$->aggregation_name = $1;
-      $$->attribute_name   = $3;
-      free($1);
-      free($3);
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->attribute_name = $3;
     }
-    |ID LBRACE ID DOT ID RBRACE{
+    | aggr_func LBRACE ID DOT ID RBRACE alias {
       $$ = new AggrAttrSqlNode;
       $$->aggregation_name = $1;
       $$->relation_name =$3;
-      $$->attribute_name =$5;
-      free($1);
-      free($3);
-      free($5);
+      if ($7 != nullptr) {
+        $$->alias = $7;
+      }
+      $$->attribute_name = $5;
     }
-    | ID LBRACE RBRACE {
+    | aggr_func LBRACE RBRACE {
       return -1;
     }
-    | ID LBRACE error RBRACE {
+    | aggr_func LBRACE error RBRACE {
       return -1;
     }
     ;
 
+aggr_func:
+    COUNT {
+      $$ = "count";
+    }
+    | MIN {
+      $$ = "min";
+    }
+    | MAX {
+      $$ = "max";
+    }
+    | SUM {
+      $$ = "sum";
+    }
+    | AVG {
+      $$ = "avg";
+    }
+    ;
 func:
     LENGTH LBRACE ID RBRACE alias {
       $$ = new FuncSqlNode;
