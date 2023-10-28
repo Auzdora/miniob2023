@@ -110,12 +110,18 @@ RC PredicatePhysicalOperator::next()
         join_tuple->set_right(sub_select_tuple);
       }
       rc = expression_->get_value(*join_tuple, value);
+      parent_tuple = nullptr;
+      sub_select_tuple = nullptr;
     }
     if (rc != RC::SUCCESS) {
+      parent_tuple = nullptr;
+      sub_select_tuple = nullptr;
       return rc;
     }
 
     if (value.get_boolean()) {
+      parent_tuple = nullptr;
+      sub_select_tuple = nullptr;
       return rc;
     }
   }
