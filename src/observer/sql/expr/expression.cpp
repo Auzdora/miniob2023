@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include <cmath>
+#include "common/globals.h"
 
 using namespace std;
 
@@ -134,6 +135,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const {
   Value left_value;
   Value right_value;
 
+  JoinedTuple joined_tuple;
   RC rc = left_->get_value(tuple, left_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));

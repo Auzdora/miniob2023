@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "common/log/log.h"
+#include "common/globals.h"
+#include "sql/expr/tuple.h"
 #include "sql/operator/predicate_physical_operator.h"
 #include "storage/record/record.h"
 #include "sql/stmt/filter_stmt.h"
@@ -58,11 +60,15 @@ RC PredicatePhysicalOperator::next()
     /// 有子查询的情况
     if (children_.size() > 1)
     {
+      if (parent_tuple == nullptr) {
+        parent_tuple = tuple;
+        join_tuple->set_left(parent_tuple);
+      }
       switch (expression_->type())
       {
       case ExprType::COMPARISON:
         {
-          rc = do_compare_expr(*tuple,value);
+          rc = do_compare_expr(*join_tuple,value);
           if (rc != RC::SUCCESS)
             return rc;
         }
@@ -77,7 +83,7 @@ RC PredicatePhysicalOperator::next()
             {
             case ExprType::COMPARISON:
              {
-              rc = do_compare_expr(*tuple,value);
+              rc = do_compare_expr(*join_tuple,value);
               if (rc != RC::SUCCESS)
                 return rc;
               if (!value.get_boolean())
@@ -93,9 +99,18 @@ RC PredicatePhysicalOperator::next()
       default:
         break;
       }
+      join_tuple->set_left(nullptr);
+      join_tuple->set_right(nullptr);
+      parent_tuple = nullptr;
+      sub_select_tuple = nullptr;
     }
-    else
-      rc = expression_->get_value(*tuple, value);
+    else {
+      if (sub_select_tuple == nullptr) {
+        sub_select_tuple = tuple;
+        join_tuple->set_right(sub_select_tuple);
+      }
+      rc = expression_->get_value(*join_tuple, value);
+    }
     if (rc != RC::SUCCESS) {
       return rc;
     }

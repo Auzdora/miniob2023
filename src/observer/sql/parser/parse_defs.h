@@ -203,6 +203,7 @@ struct SelectSqlNode
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
   std::vector<OrderBySqlNode>     orderbys;      ///< order by语法支持
   std::vector<ExprSqlNode>        expressions;   ///< 支持exression表达式
+  std::unordered_map<std::string, std::string> rel_alias; ///< 原名到别名的映射
 };
 
 /**
@@ -273,6 +274,7 @@ struct AttrInfoSqlNode {
 struct CreateTableSqlNode {
   std::string relation_name;               ///< Relation name
   std::vector<AttrInfoSqlNode> attr_infos; ///< attributes
+  bool use_select;                         ///< indicate it is a copy create
 };
 
 /**
@@ -373,6 +375,7 @@ enum SqlCommandFlag {
   SCF_UPDATE,
   SCF_DELETE,
   SCF_CREATE_TABLE,
+  SCF_CREATE_TABLE_SELECT,
   SCF_DROP_TABLE,
   SCF_CREATE_INDEX,
   SCF_DROP_INDEX,

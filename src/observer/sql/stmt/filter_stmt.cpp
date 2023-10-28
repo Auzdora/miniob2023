@@ -31,7 +31,7 @@ FilterStmt::~FilterStmt() {
 RC FilterStmt::create(Db *db, Table *default_table,
                       std::unordered_map<std::string, Table *> *tables,
                       const ConditionSqlNode *conditions, int condition_num,
-                      FilterStmt *&stmt) {
+                      FilterStmt *&stmt, const std::unordered_map<std::string, std::string> &rel_alias) {
   RC rc = RC::SUCCESS;
   stmt = nullptr;
 
@@ -49,6 +49,7 @@ RC FilterStmt::create(Db *db, Table *default_table,
   }
 
   stmt = tmp_stmt;
+  stmt->rel_alias_ = rel_alias;
   return rc;
 }
 

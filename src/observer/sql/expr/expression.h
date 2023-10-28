@@ -539,7 +539,7 @@ public:
     db_ = db;
   }
 
-  SelectSqlNode get_subsqlNode() { return subselect_->selection; }
+  SelectSqlNode &get_subsqlNode() { return subselect_->selection; }
 
 
   RC create_stmt();

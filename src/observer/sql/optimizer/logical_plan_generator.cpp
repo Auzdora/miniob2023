@@ -267,6 +267,8 @@ RC LogicalPlanGenerator::create_plan(
     if (left->type() == ExprType::SUBSELECT)
     {
       SubSelectExpr * subselect_expr = static_cast<SubSelectExpr *>(left.get());
+      
+      subselect_expr->get_subsqlNode().rel_alias.insert(filter_stmt->get_rel_alias().begin(), filter_stmt->get_rel_alias().end());
       if(RC::SUCCESS != subselect_expr->create_stmt())
         return RC::INTERNAL;
       unique_ptr<LogicalOperator> subselect_loper = nullptr;
@@ -279,6 +281,7 @@ RC LogicalPlanGenerator::create_plan(
     if (right->type() == ExprType::SUBSELECT)
     {
       SubSelectExpr * subselect_expr = static_cast<SubSelectExpr *>(right.get());
+      subselect_expr->get_subsqlNode().rel_alias.insert(filter_stmt->get_rel_alias().begin(), filter_stmt->get_rel_alias().end());
       if(RC::SUCCESS != subselect_expr->create_stmt())
         return RC::INTERNAL;
       unique_ptr<LogicalOperator> subselect_loper = nullptr;

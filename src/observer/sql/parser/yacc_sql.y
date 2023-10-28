@@ -386,7 +386,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
       free($3);
-
+      create_table.use_select = false;
       std::vector<AttrInfoSqlNode> *src_attrs = $6;
 
       if (src_attrs != nullptr) {
@@ -395,6 +395,24 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       create_table.attr_infos.emplace_back(*$5);
       std::reverse(create_table.attr_infos.begin(), create_table.attr_infos.end());
       delete $5;
+    }
+    | CREATE TABLE ID AS select_stmt
+    {
+      $$ = $5;
+      $$->flag = SCF_CREATE_TABLE_SELECT;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+      create_table.use_select = true;
+    }
+    | CREATE TABLE ID select_stmt 
+    {
+      $$ = $4;
+      $$->flag = SCF_CREATE_TABLE_SELECT;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+      create_table.use_select = true;
     }
     ;
 attr_def_list:
@@ -692,11 +710,11 @@ select_stmt:        /*  select 语句的语法解析树*/
         }
         delete $2;
       }
+
       if ($6 != nullptr) {
         $$->selection.relations.swap(*$6);
         delete $6;
       }
-
       RelSqlNode rel_node;
       rel_node.relation_name = $4;
       free($4);
@@ -705,6 +723,12 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       $$->selection.relations.push_back(rel_node);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
+
+      // construct map
+      for (const auto &[relation_name, alias] : $$->selection.relations) {
+        $$->selection.rel_alias.insert(std::pair<std::string, std::string>(relation_name, alias));
+      }
+
       if ($7 != nullptr) {
         $$->selection.innerJoins.swap(*$7);
         std::reverse($$->selection.innerJoins.begin(), $$->selection.innerJoins.end());

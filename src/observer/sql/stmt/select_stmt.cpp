@@ -88,6 +88,22 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
+  for (const auto &[relation_name, alias] : select_sql.rel_alias) {
+    auto it = table_map.find(relation_name);
+    if (it != table_map.end()) {
+      continue;
+    }
+    Table *table = db->find_table(relation_name.c_str());
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), relation_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    table_map.insert(std::pair<std::string, Table *>(relation_name, table));
+    if (!alias.empty()) {
+      table_map.insert(std::pair<std::string, Table *>(alias, table));
+    }
+  }
+
   // collect join tables in `inner join` statement
   for (size_t i = 0; i < select_sql.innerJoins.size(); i++) {
     const char *table_name = select_sql.innerJoins[i].relation.c_str();
@@ -211,7 +227,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       &table_map,
       select_sql.innerJoins[i].conditions.data(),
       static_cast<int>(select_sql.innerJoins[i].conditions.size()),
-      filter_stmt);
+      filter_stmt, select_sql.rel_alias);
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot construct filter stmt");
       return rc;
@@ -226,7 +242,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       &table_map,
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
-      filter_stmt);
+      filter_stmt, select_sql.rel_alias);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
