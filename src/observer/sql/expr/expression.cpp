@@ -446,8 +446,8 @@ std::string FunctionExpr::format_date(int date_int, const std::string& format) c
                     };
                     result += months[month - 1];
                 } break;
-                case 'z': result += std::to_string(year); break;
-                case 'n': result += std::to_string(month); break;
+                case 'z': result += 'z'; break;
+                case 'n': result += 'n'; break;
                 default: result += format[i]; break;
             }
             i++; // Skip next character
