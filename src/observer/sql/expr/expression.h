@@ -70,7 +70,7 @@ public:
   Expression() = default;
   virtual ~Expression() = default;
 
-  virtual void init(Db *db, Table *default_table) = 0;
+  virtual void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) = 0;
 
   /**
    * @brief
@@ -120,7 +120,7 @@ public:
   FieldExpr(const Table *table, const FieldMeta *field)
       : field_(table, field) {}
 
-  void init(Db *db, Table *default_table) override {
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override {
     if (table_name_.empty()) {
       const FieldMeta *field_meta =
           default_table->table_meta().field(field_name_.c_str());
@@ -131,7 +131,8 @@ public:
       return;
     }
 
-    Table *new_table = db->find_table(table_name_.c_str());
+    // Table *new_table = db->find_table(table_name_.c_str());
+    Table *new_table = tables->at(table_name_);
     const FieldMeta *field_meta =
         new_table->table_meta().field(field_name_.c_str());
     field_.set_table(new_table);
@@ -181,7 +182,7 @@ public:
 
   virtual ~ValueExpr() = default;
 
-  void init(Db *db, Table *default_table) override { return; }
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override { return; }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
   RC try_get_value(Value &value) const override {
@@ -210,7 +211,7 @@ public:
   CastExpr(std::unique_ptr<Expression> child, AttrType cast_type);
   virtual ~CastExpr();
 
-  void init(Db *db, Table *default_table) override { return; }
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override { return; }
 
   ExprType type() const override { return ExprType::CAST; }
   RC get_value(const Tuple &tuple, Value &value) const override;
@@ -239,9 +240,9 @@ public:
                  std::unique_ptr<Expression> right);
   virtual ~ComparisonExpr();
 
-  void init(Db *db, Table *default_table) override {
-    left_->init(db, default_table);
-    right_->init(db, default_table);
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override {
+    left_->init(db, default_table, tables);
+    right_->init(db, default_table, tables);
   }
 
   ExprType type() const override { return ExprType::COMPARISON; }
@@ -291,9 +292,9 @@ public:
                   std::vector<std::unique_ptr<Expression>> &children);
   virtual ~ConjunctionExpr() = default;
 
-  void init(Db *db, Table *default_table) override {
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override {
     for (const auto &child : children_) {
-      child->init(db, default_table);
+      child->init(db, default_table, tables);
     }
   }
 
@@ -332,10 +333,10 @@ public:
                  std::unique_ptr<Expression> right);
   virtual ~ArithmeticExpr() = default;
 
-  void init(Db *db, Table *default_table) override {
-    left_->init(db, default_table);
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override {
+    left_->init(db, default_table, tables);
     if (arithmetic_type_ != Type::NEGATIVE) {
-      right_->init(db, default_table);
+      right_->init(db, default_table, tables);
     } else {
       right_.reset(new ValueExpr(Value(0)));
     }
@@ -373,7 +374,7 @@ public:
   AggregationExpr(const std::string table_name, const std::string field_name)
       : table_name_(table_name), field_name_(field_name) {}
 
-  void init(Db *db, Table *default_table) override { return; }
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override { return; }
 
   virtual ~AggregationExpr() = default;
 
@@ -431,7 +432,7 @@ public:
   }
   virtual ~FunctionExpr() = default;
 
-  void init(Db *db, Table *default_table) override {
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override {
     if (is_value_) {
       return;
     }
@@ -445,7 +446,8 @@ public:
       return;
     }
 
-    Table *new_table = db->find_table(table_name_.c_str());
+    // Table *new_table = db->find_table(table_name_.c_str());
+    Table *new_table = tables->at(table_name_);
     const FieldMeta *field_meta =
         new_table->table_meta().field(field_name_.c_str());
     field_.set_table(new_table);
@@ -489,7 +491,7 @@ class SubSelectExpr : public Expression
 {
 public:
   SubSelectExpr() = default;
-  void init(Db *db, Table *default_table) override { return; }
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override { return; }
   explicit SubSelectExpr(ParsedSqlNode *&subselect) : subselect_(subselect)
   {}
 
@@ -544,7 +546,7 @@ class SetExpr : public Expression
 {
 public:
   SetExpr() = default;
-  void init(Db *db, Table *default_table) override { return; }
+  void init(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables) override { return; }
   explicit SetExpr(std::vector<Expression*> &expr_set)
   {
     expr_set_.swap(expr_set);

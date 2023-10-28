@@ -35,8 +35,9 @@ class Expression;
  * Attr -> Attribute
  */
 struct RelAttrSqlNode {
-  std::string relation_name;  ///< relation name (may be NULL) 表名
+  std::string relation_name;  ///< relation name (may be NULL) 表名，可能是alias，需要在stmt做映射解析
   std::string attribute_name; ///< attribute name              属性名
+  std::string attribute_alias;     ///< attribute alias             属性别名
 };
 
 /**
@@ -46,7 +47,7 @@ struct RelAttrSqlNode {
  */
 struct AggrAttrSqlNode
 {
-  std::string relation_name;      ///< 表名
+  std::string relation_name;      ///< 表名，可能是alias，需要在stmt做映射解析
   std::string aggregation_name;   ///< aggregation name          聚合函数名
   std::string attribute_name;     ///< attribute name            属性名
 };
@@ -172,6 +173,17 @@ struct OrderBySqlNode
 };
 
 /**
+ * @brief 描述一个relation，也就是表名，包含alias和原名
+ * @ingroup SQLParser
+ * @details 
+ */
+struct RelSqlNode {
+  std::string relation_name;               ///< Relation to insert into;
+  std::string alias;
+};
+
+
+/**
  * @brief 描述一个select语句
  * @ingroup SQLParser
  * @details 一个正常的select语句描述起来比这个要复杂很多，这里做了简化。
@@ -186,7 +198,7 @@ struct SelectSqlNode
 {
   std::vector<AggrAttrSqlNode>    aggregations;  ///< aggregation functions in select clause
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
-  std::vector<std::string>        relations;     ///< 查询的表
+  std::vector<RelSqlNode>         relations;     ///< 查询的表
   std::vector<InnerJoinSqlNode>   innerJoins;    ///< inner join语句
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
   std::vector<OrderBySqlNode>     orderbys;      ///< order by语法支持

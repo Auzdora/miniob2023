@@ -54,11 +54,21 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return RC::INVALID_ARGUMENT;
   }
 
+  // create a map between alias and original name which stored in database
+  // whenever you access a table or attr using alias, you have to lookup
+  // this map first
+  std::unordered_map<std::string, std::string> rel_alias_map;
+  for (size_t i = 0; i < select_sql.relations.size(); i++) {
+    if (!select_sql.relations[i].alias.empty()) {
+      rel_alias_map.insert(std::pair<std::string, std::string>(select_sql.relations[i].alias, select_sql.relations[i].relation_name));
+    }
+  }
+
   // collect tables in `from` statement
   std::vector<Table *> tables;
   std::unordered_map<std::string, Table *> table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+    const char *table_name = select_sql.relations[i].relation_name.c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -72,6 +82,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
     tables.push_back(table);
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
+    if (!select_sql.relations[i].alias.empty()) {
+      table_map.insert(std::pair<std::string, Table *>(select_sql.relations[i].alias.c_str(), table));
+    }
   }
 
   // collect join tables in `inner join` statement
@@ -251,7 +264,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     if (expr == nullptr) {
       continue;
     }
-    expr->init(db, default_table);
+    expr->init(db, default_table, &table_map);
     query_expressions.push_back(expr);
     query_expressions_names.push_back(expr->name());
   }

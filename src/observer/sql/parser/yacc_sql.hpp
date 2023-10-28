@@ -154,7 +154,7 @@ union YYSTYPE
   std::vector<OrderBySqlNode> *     order_by_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<AggrAttrSqlNode> *    aggr_attr_list;
-  std::vector<std::string> *        relation_list;
+  std::vector<RelSqlNode> *         relation_list;
   std::vector<InnerJoinSqlNode> *   inner_join_list;
   std::vector<std::vector<Value>> * value_lists;
   std::vector<std::string> *        index_list;
