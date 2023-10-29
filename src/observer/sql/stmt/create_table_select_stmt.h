@@ -39,11 +39,30 @@ public:
           select_stmt_(select_stmt),
           db_(db)
   {
+    for (int i = 0; i < field_names.size(); i++) {
+      field_names_[i] = extractColumnNameOrAlias(field_names_[i]);
+    }
     std::reverse(field_names_.begin(), field_names_.end());
   }
   virtual ~CreateTableSelectStmt() = default;
 
   StmtType type() const override { return StmtType::CREATE_TABLE_SELECT; }
+  std::string extractColumnNameOrAlias(const std::string& input) {
+      // Check if there's an "as" keyword to define an alias
+      auto asPos = input.rfind(" as ");
+      if (asPos != std::string::npos) {
+          return input.substr(asPos + 4); // Return the alias
+      }
+
+      // If there's no alias, check for a table alias (e.g., "t.id")
+      auto dotPos = input.rfind(".");
+      if (dotPos != std::string::npos) {
+          return input.substr(dotPos + 1); // Return the column name
+      }
+
+      // If there's no table or alias, return the input as-is
+      return input;
+  }
 
   const std::string &table_name() const { return table_name_; }
   const std::vector<std::string> &field_names() const { return field_names_; }

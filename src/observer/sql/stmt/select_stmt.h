@@ -99,4 +99,5 @@ private:
   std::vector<Expression *> query_expressions_;
   std::vector<std::string> query_expressions_names_;
   std::vector<std::string> start_field_names_; // 为create table select 创建，特殊情况
+  std::vector<std::string> original_col_names_; // 为create table select 创建，处理名字的情况
 };
