@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,9 @@ public:
           star_field_names_(star_field_name),
           select_stmt_(select_stmt),
           db_(db)
-  {}
+  {
+    std::reverse(field_names_.begin(), field_names_.end());
+  }
   virtual ~CreateTableSelectStmt() = default;
 
   StmtType type() const override { return StmtType::CREATE_TABLE_SELECT; }

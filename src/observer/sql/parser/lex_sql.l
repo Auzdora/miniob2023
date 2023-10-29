@@ -133,12 +133,12 @@ DATE_FORMAT                             RETURN_TOKEN(DATE_FORMAT);
 AS                                      RETURN_TOKEN(AS);
 IN                                      RETURN_TOKEN(IN);
 EXISTS                                  RETURN_TOKEN(EXISTS);
-COUNT                                   RETURN_TOKEN(COUNT);
+{ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
+SUM                                     RETURN_TOKEN(SUM);
 MIN                                     RETURN_TOKEN(MIN);
 MAX                                     RETURN_TOKEN(MAX);
-SUM                                     RETURN_TOKEN(SUM);
 AVG                                     RETURN_TOKEN(AVG);
-{ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
+COUNT                                   RETURN_TOKEN(COUNT);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
 

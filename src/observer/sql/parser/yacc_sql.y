@@ -1184,6 +1184,17 @@ aggr_attr:
       }
       $$->attribute_name = $5;
     }
+    | aggr_func LBRACE '*' RBRACE alias {
+      if (0 != strcmp($1, "count")) {
+        return -1;
+      }
+      $$ = new AggrAttrSqlNode;
+      $$->aggregation_name = "count";
+      if ($5 != nullptr) {
+        $$->alias = $5;
+      }
+      $$->attribute_name = "*";
+    }
     | aggr_func LBRACE RBRACE {
       return -1;
     }
@@ -1207,6 +1218,22 @@ aggr_func:
     }
     | AVG {
       $$ = "avg";
+    }
+    | ID {
+      if (0 == strcmp($1, "sum")) {
+        $$ = "sum";
+      } else if (0 == strcmp($1, "min")) {
+        $$ = "min";
+      } else if (0 == strcmp($1, "max")) {
+        $$ = "max";
+      } else if (0 == strcmp($1, "avg")) {
+        $$ = "avg";
+      } else if (0 == strcmp($1, "count")) {
+        $$ = "count";
+      }
+      else {
+        return -1;
+      }
     }
     ;
 func:
