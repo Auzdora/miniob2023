@@ -61,6 +61,10 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   std::unordered_map<std::string, std::string> rel_alias_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
     if (!select_sql.relations[i].alias.empty()) {
+      auto it = rel_alias_map.find(select_sql.relations[i].alias);
+      if (it != rel_alias_map.end()) {
+        return RC::INTERNAL;
+      }
       rel_alias_map.insert(std::pair<std::string, std::string>(select_sql.relations[i].alias, select_sql.relations[i].relation_name));
     }
   }
