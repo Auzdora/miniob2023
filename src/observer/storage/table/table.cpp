@@ -285,7 +285,7 @@ RC Table::visit_record(const RID &rid, bool readonly, std::function<void(Record 
   return record_handler_->visit_record(rid, readonly, visitor);
 }
 
-RC Table::get_record(const RID &rid, Record &record)
+RC Table::get_record(const RID &rid, Record &record) 
 {
   const int record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
