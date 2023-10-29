@@ -42,6 +42,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 }
 
 int aggregation_cnt = 0;
+int offset_aggr_cnt = 0;
 
 %}
 
@@ -959,6 +960,18 @@ expression:
     }
     | LBRACE expression RBRACE {
       $$ = $2;
+      // set sub select aggr index begin from 0
+      if ($$->expression->type() == ExprType::SUBSELECT) {
+        SubSelectExpr *sub_expr = static_cast<SubSelectExpr *>($$->expression);
+        int offset = 0;
+        for (int i = 0; i < sub_expr->get_subsqlNode().aggregations.size(); i++) {
+          AggregationExpr *aggr_expr = static_cast<AggregationExpr *>(sub_expr->get_subsqlNode().expressions[i].expression);
+          if (i == 0) {
+            offset = aggr_expr->index();
+          }
+          aggr_expr->set_index(aggr_expr->index() - offset);
+        }
+      }
       $$->expression->set_name(token_name(sql_string, &@$));
     }
     | LBRACE expression set_expression RBRACE
@@ -1058,7 +1071,7 @@ expression:
       delete $1;
     }
     ;
-    | select_stmt{
+    | select_stmt {
       $$ = new ExprSqlNode;
       ParsedSqlNode * subsql_node = std::move($1);
       $$->expression = new SubSelectExpr(subsql_node);   

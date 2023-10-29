@@ -36,7 +36,7 @@ public:
     return PhysicalOperatorType::PREDICATE;
   }
   
-  RC do_compare_expr(Tuple &tuple,Value &value);
+  RC do_compare_expr(Tuple &tuple,Value &value, std::unique_ptr<Expression> &expr);
   RC InOpFunc(PhysicalOperator *&child,Value &left_value,Value &value, CompOp comp);
 
   RC open(Trx *trx) override;

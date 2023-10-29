@@ -48,6 +48,7 @@ RC PredicatePhysicalOperator::next()
   PhysicalOperator *oper = children_.front().get();
 
   while (RC::SUCCESS == (rc = oper->next())) {
+    bool conjunct_result = true;
     Tuple *tuple = oper->current_tuple();
     if (nullptr == tuple) {
       rc = RC::INTERNAL;
@@ -85,56 +86,70 @@ RC PredicatePhysicalOperator::next()
       
       switch (expression_->type())
       {
-      case ExprType::COMPARISON:
-        {
-          rc = do_compare_expr(*top_tuple,value);
-          if (rc != RC::SUCCESS) {
-            clear_global_tuple();
-            return rc;
-          }
-        }
-        break;
-      case ExprType::CONJUNCTION:
-        {
-          ConjunctionExpr * top = static_cast<ConjunctionExpr *>(expression_.get());
-          std::vector<std::unique_ptr<Expression>> &children = top->children();
-          bool result = false;
-          for(int i = 0; i < children.size();i++){
-            switch (children[i]->type())
-            {
-            case ExprType::COMPARISON:
-             {
-              rc = do_compare_expr(*top_tuple,value);
-              if (rc != RC::SUCCESS) {
-                clear_global_tuple();
-                return rc;
-              }
-              if (!value.get_boolean()) {
-                clear_global_tuple();
-                return rc;
-              }
-             } break;
-            default: {
+        case ExprType::COMPARISON:
+          {
+            rc = do_compare_expr(*top_tuple,value, expression_);
+            if (rc != RC::SUCCESS) {
               clear_global_tuple();
-              return RC::INTERNAL;
-            } break;
+              return rc;
             }
           }
-        }
-        break;
-      default:
-        break;
+          break;
+        case ExprType::CONJUNCTION:
+          {
+            ConjunctionExpr * top = static_cast<ConjunctionExpr *>(expression_.get());
+            std::vector<std::unique_ptr<Expression>> &children = top->children();
+            for(int i = 0; i < children.size();i++){
+              if (conjunct_result == false) {
+                break;
+              }
+              switch (children[i]->type())
+              {
+              case ExprType::COMPARISON:
+              {
+                rc = do_compare_expr(*top_tuple,value, children[i]);
+                if (rc != RC::SUCCESS) {
+                  clear_global_tuple();
+                  return rc;
+                }
+                
+                if (!value.get_boolean()) {
+                  conjunct_result = false;
+                  clear_global_tuple();
+                  break;
+                }
+              } break;
+              default: {
+                clear_global_tuple();
+                return RC::INTERNAL;
+              } break;
+              }
+            }
+          } break;
+        default:
+          break;
       }
       top_tuple->set_left(nullptr);
     }
     else {
-      top_tuple->set_left(tuple);
+      if (top_tuple->get_left() != nullptr) {
+        JoinedTuple *subJointuple = new JoinedTuple();
+        subJointuple->set_left(tuple);
+        subJointuple->set_right(&(*top_tuple));
+        top_tuple = subJointuple;
+      } else {
+        top_tuple->set_left(tuple);
+      }
       rc = expression_->get_value(*top_tuple, value);
       top_tuple->set_left(nullptr);
     }
     if (rc != RC::SUCCESS) {
       clear_global_tuple();
       return rc;
+    }
+
+    if (conjunct_result == false) {
+      continue;
     }
 
     if (value.get_boolean()) {
@@ -156,8 +171,8 @@ Tuple *PredicatePhysicalOperator::current_tuple()
   return children_[0]->current_tuple();
 }
 
-RC PredicatePhysicalOperator::do_compare_expr(Tuple &tuple,Value &value){
-  ComparisonExpr *top = static_cast<ComparisonExpr*>(expression_.get());
+RC PredicatePhysicalOperator::do_compare_expr(Tuple &tuple,Value &value, std::unique_ptr<Expression> &expr){
+  ComparisonExpr *top = static_cast<ComparisonExpr*>(expr.get());
   int left_sub_id = 0;
   int right_sub_id = 0;
   // 查找左子查询的位置
