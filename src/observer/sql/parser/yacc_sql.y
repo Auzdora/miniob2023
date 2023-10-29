@@ -830,7 +830,7 @@ calc_stmt:
     ;
 
 expression_list:
-    '*'
+    '*' alias
     {
       $$ = new std::vector<ExprSqlNode>;
       ExprSqlNode *expr_node = new ExprSqlNode;
@@ -1342,9 +1342,15 @@ alias:
       $$ = nullptr;
     }
     | ID {
+      if (0 == strcmp($1, "alias")) {
+        return -1;
+      }
       $$ = $1;
     }
     | AS ID {
+      if (0 == strcmp($2, "alias")) {
+        return -1;
+      }
       $$ = $2;
     }
 
