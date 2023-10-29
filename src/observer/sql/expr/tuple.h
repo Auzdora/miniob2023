@@ -422,6 +422,8 @@ public:
     return RC::INTERNAL;
   }
 
+  const std::vector<Value> &get_cells() const { return cells_; }
+
 private:
   std::vector<Value> cells_;
 };

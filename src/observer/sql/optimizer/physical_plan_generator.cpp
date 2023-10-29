@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/aggr_logical_operator.h"
 #include "sql/operator/aggr_physical_operator.h"
+#include "sql/operator/create_table_select_logical_operator.h"
+#include "sql/operator/create_table_select_physical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/operator/table_get_logical_operator.h"
@@ -98,12 +100,21 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator,
   case LogicalOperatorType::UPDATE: 
   {
     return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
-  }
-  case LogicalOperatorType::AGGREGATION: {
+  } break;
+
+  case LogicalOperatorType::AGGREGATION: 
+  {
     return create_plan(static_cast<AggregationLogicalOperator &>(logical_operator), oper);
   } break;
-  case LogicalOperatorType::SORT: {
+
+  case LogicalOperatorType::SORT: 
+  {
     return create_plan(static_cast<SortLogicalOperator &>(logical_operator), oper);
+  } break;
+
+  case LogicalOperatorType::CREATE_TABLE_SELECT:
+  {
+    return create_plan(static_cast<CreateTableSelectLogicalOperator &>(logical_operator), oper);
   } break;
 
   default: {
@@ -437,6 +448,25 @@ RC PhysicalPlanGenerator::create_plan(SortLogicalOperator &sort_oper, unique_ptr
   }
 
   oper = unique_ptr<PhysicalOperator>(new SortPhysicalOperator(std::move(sort_oper.sort_fields()), std::move(sort_oper.sort_types()), std::move(sort_oper.sort_idx())));
+  oper->add_child(std::move(child_phy_oper));
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(CreateTableSelectLogicalOperator &create_table_select_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &children_opers = create_table_select_oper.children();
+  ASSERT(children_opers.size() == 1, "create table select sub oper number should be 1");
+
+  LogicalOperator &child_oper = *children_opers.front();
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+  RC rc = create(child_oper, child_phy_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create child operator of sort operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new CreateTableSelectPhysicalOperator(create_table_select_oper.get_db(), create_table_select_oper.table_name(), create_table_select_oper.expr_names()));
   oper->add_child(std::move(child_phy_oper));
   return rc;
 }

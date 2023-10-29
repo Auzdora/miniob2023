@@ -44,6 +44,7 @@ enum class LogicalOperatorType
   AGGREGATION,///< 聚合算子
   SORT,       ///< 排序算子
   SUBSELECT,  ///< 子查询中间层
+  CREATE_TABLE_SELECT, ///< 复制表
 };
 
 /**

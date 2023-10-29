@@ -88,6 +88,8 @@ public:
 
   AttrType attr_type() const { return attr_type_; }
 
+  void set_nullable(bool flag) { is_nullable_ = flag;}
+
 public:
   /**
    * 获取对应的值
@@ -99,6 +101,7 @@ public:
   std::string get_string() const;
   bool get_boolean() const;
   bool is_null() const;               ///< 判断当前value 是否为null
+  bool is_nullable() const;
 
 private:
   AttrType attr_type_ = UNDEFINED;
@@ -111,4 +114,5 @@ private:
     bool bool_value_;
   } num_value_;
   std::string str_value_;
+  bool is_nullable_;
 };

@@ -502,6 +502,10 @@ bool Value::is_null() const{
   return (attr_type() == AttrType::OBNULL);
 }
 
+bool Value::is_nullable() const {
+  return is_nullable_;
+}
+
 bool Value::cast_type_to(AttrType type){
   switch (type)
   {
