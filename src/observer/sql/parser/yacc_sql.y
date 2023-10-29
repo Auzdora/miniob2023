@@ -421,6 +421,24 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       free($3);
       create_table.use_select = true;
     }
+    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE AS select_stmt
+    {
+      $$ = $9;
+      $$->flag = SCF_CREATE_TABLE_SELECT;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+      create_table.use_select = true;
+    }
+    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE select_stmt 
+    {
+      $$ = $8;
+      $$->flag = SCF_CREATE_TABLE_SELECT;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+      create_table.use_select = true;
+    }
     ;
 attr_def_list:
     /* empty */
