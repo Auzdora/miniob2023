@@ -87,6 +87,24 @@ RC AggregationPhysicalOperator::next()
         aggr_results_.push_back(Value(0));
       }
     }
+    if (aggr_funcs_[i] == "min") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value());
+        aggr_results_[i].set_null();
+      }
+    }
+    if (aggr_funcs_[i] == "max") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value());
+        aggr_results_[i].set_null();
+      }
+    }
+    if (aggr_funcs_[i] == "null") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value());
+        aggr_results_[i].set_null();
+      }
+    }
   }
   tuple_.set_cells(aggr_results_);
 
