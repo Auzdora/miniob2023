@@ -63,6 +63,10 @@ RC AggregationPhysicalOperator::next()
     cnt++;
   }
 
+  if (rc == RC::INTERNAL) {
+    return rc;
+  }
+
   // finish all aggregation
   for (int i = 0; i < aggr_funcs_.size(); i++) {
     if (aggr_funcs_[i] == "avg") {

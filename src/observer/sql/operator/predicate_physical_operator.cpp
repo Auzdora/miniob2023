@@ -393,10 +393,18 @@ RC PredicatePhysicalOperator::do_compare_expr(Tuple &tuple,Value &value, std::un
         value.set_boolean(true);
       else 
         value.set_boolean(false);
-      if(left_sub_id)
-        rc = left_suboper->close();
-      if(right_sub_id)
-        rc = right_suboper->close();
+      if(left_sub_id) {
+        left_suboper->close();
+        if (rc == RC::INTERNAL) {
+          return rc;
+        }
+      }
+      if(right_sub_id) {
+        right_suboper->close();
+        if (rc == RC::INTERNAL) {
+          return rc;
+        }
+      }
       return rc;
     }
     break;
