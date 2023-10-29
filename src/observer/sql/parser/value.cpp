@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <cmath>
 #include <sstream>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "null","floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "null", "text","floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type) {
   if (type >= UNDEFINED && type <= FLOATS) {

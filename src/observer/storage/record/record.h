@@ -37,9 +37,12 @@ struct RID
 {
   PageNum page_num;  // record's page number
   SlotNum slot_num;  // record's slot number
+  std::vector<PageNum> text_page_nums; //text 字段的存储 page num
 
   RID() = default;
   RID(const PageNum _page_num, const SlotNum _slot_num) : page_num(_page_num), slot_num(_slot_num) {}
+  RID(const PageNum _page_num, const SlotNum _slot_num, const std::vector<PageNum> _text_page_nums) 
+  : page_num(_page_num), slot_num(_slot_num), text_page_nums(_text_page_nums) {}
 
   const std::string to_string() const
   {
@@ -83,6 +86,9 @@ struct RID
     return &rid;
   }
 };
+
+struct textData;
+class TextData;
 
 /**
  * @brief 表示一个记录
@@ -132,11 +138,11 @@ public:
   {
     this->data_ = data;
     this->len_  = len;
-  }
+  }   
   void set_data_owner(char *data, int len)
   {
     ASSERT(len != 0, "the len of data should not be 0");
-    this->~Record();
+    this->~Record();      // 删除record 中原来的data（有owner_标记的，即复制的record数据）数据
 
     this->data_  = data;
     this->len_   = len;
@@ -146,6 +152,18 @@ public:
   char       *data() { return this->data_; }
   const char *data() const { return this->data_; }
   int         len() const { return this->len_; }
+
+  void set_has_text() { has_text_ = true;}
+  bool has_text() { return has_text_;}
+  void set_write_text(const char *data, int32_t len) {
+    write_text_data_.data_ = data;
+    write_text_data_.len_ = len;
+  }
+
+  struct textData & get_write_text() { return write_text_data_;}
+
+  void set_text_offset(int offset) { text_offset_ = offset;}
+  int get_text_offset() { return text_offset_;} 
 
   void set_rid(const RID &rid) { this->rid_ = rid; }
   void set_rid(const PageNum page_num, const SlotNum slot_num)
@@ -162,4 +180,69 @@ private:
   char *data_  = nullptr;
   int   len_   = 0;       /// 如果不是record自己来管理内存，这个字段可能是无效的
   bool  owner_ = false;   /// 表示当前是否由record来管理内存
+  bool  has_text_ = false; /// 表示是否有text字段
+  int   text_offset_ = -1; /// text 字段在record中的偏移量   | text_len+text_page_num |
+  textData write_text_data_;     /// 存储text的结构
+  TextData read_text_data; /// 读取的text
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+struct textData
+{
+  const char * data_;
+  int32_t len_;
+};
+
+struct textMeta
+{
+  int start_page_num;
+  int32_t len_;
+};
+
+
+class TextData{
+public:
+  TextData();
+  ~TextData();
+
+  bool init() {
+    idx_ = 0;
+  };
+
+  void open(){
+    write_ = true;
+  };
+
+  void close(){
+    write_ = false;
+  };
+
+  int32_t next(const char *data){
+    if (has_next)
+    {
+      data = datas_[idx_].data_;
+      return datas_[idx_++].len_;
+    }else{
+      data = nullptr;
+      return 0;
+    }
+  };
+
+  bool has_next(){
+    return (idx_ == datas_.size());
+  };
+
+  bool append_data(const char *data_para,int32_t len){
+    if (write_)
+    {
+      datas_.push_back({data_para,len});
+      return true;
+    }
+    return false;
+  };
+
+private:
+  std::vector<textData> datas_; //不管理内存
+  int idx_ = 0;
+  bool write_ = false;          //控制是否能写数据
 };
