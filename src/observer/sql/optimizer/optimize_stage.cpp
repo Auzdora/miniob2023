@@ -39,6 +39,8 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     if (rc != RC::UNIMPLENMENT) {
       LOG_WARN("failed to create logical plan. rc=%s", strrc(rc));
     }
+    SessionEvent *session_event = sql_event->session_event();
+    session_event->sql_result()->set_return_code(rc);
     return rc;
   }
 
