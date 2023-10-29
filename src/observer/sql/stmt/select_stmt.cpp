@@ -128,6 +128,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
+  std::vector<std::string> star_field_names;
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
     const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
 
@@ -135,6 +136,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       for (Table *table : tables) {
         wildcard_fields(table, query_fields);
+        for (const auto &field : query_fields) {
+          star_field_names.push_back(field.field_name());
+        }
       }
 
     } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
@@ -319,6 +323,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->sort_types_.swap(sort_types);
   select_stmt->query_expressions_.swap(query_expressions);
   select_stmt->query_expressions_names_.swap(query_expressions_names);
+  select_stmt->start_field_names_.swap(star_field_names);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

@@ -24,7 +24,9 @@ using namespace std;
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const {
   RC rc = tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
-  value.set_nullable(field_.meta()->nullable());
+  if (field_.meta() != nullptr) {
+    value.set_nullable(field_.meta()->nullable());
+  }
   return rc;
 }
 
@@ -36,7 +38,7 @@ RC FieldExpr::get_values(const Tuple &tuple, std::vector<Value> &values) const {
     Value tmp_val;
     const FieldMeta *field_meta = star_table_->table_meta().field(i);
     tuple.find_cell(TupleCellSpec(table_name(), field_meta->name()), tmp_val);
-    tmp_val.set_nullable(field_.meta()->nullable());
+    tmp_val.set_nullable(field_meta->nullable());
     vals.push_back(tmp_val);
   }
   values = vals;

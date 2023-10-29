@@ -83,6 +83,11 @@ public:
     return query_expressions_names_;
   }
 
+  const std::vector<std::string> &star_field_names() const
+  {
+    return start_field_names_;
+  }
+
 private:
   std::vector<Field> sort_fields_;
   std::vector<OrderType> sort_types_;
@@ -93,4 +98,5 @@ private:
   std::vector<FilterStmt *> filter_stmts_;   // 多个filter for join 或者其他筛选
   std::vector<Expression *> query_expressions_;
   std::vector<std::string> query_expressions_names_;
+  std::vector<std::string> start_field_names_; // 为create table select 创建，特殊情况
 };

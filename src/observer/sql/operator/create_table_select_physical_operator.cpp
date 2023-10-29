@@ -56,8 +56,16 @@ RC CreateTableSelectPhysicalOperator::next()
       std::vector<AttrInfoSqlNode> attr_infos;
       ValueListTuple *val_tuple = static_cast<ValueListTuple *>(tuple);
       if (val_tuple->cell_num() != expr_names_.size()) {
-        std::cout << "val tuple size is not equal to expression, maybe it is a * case" << std::endl;
-        return RC::INTERNAL;
+        if (expr_names_.size() == 0) {
+          // single * case
+          for(const auto name : star_field_names_) {
+            expr_names_.push_back(name);
+          }
+        }
+        else {
+          std::cout << "val tuple size is not equal to expression, maybe it is a * case" << std::endl;
+          return RC::INTERNAL;
+        }
       }
       for (int i = 0; i < val_tuple->cell_num(); i++) {
         Value tmp_val;

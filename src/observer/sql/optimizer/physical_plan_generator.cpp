@@ -466,7 +466,7 @@ RC PhysicalPlanGenerator::create_plan(CreateTableSelectLogicalOperator &create_t
     return rc;
   }
 
-  oper = unique_ptr<PhysicalOperator>(new CreateTableSelectPhysicalOperator(create_table_select_oper.get_db(), create_table_select_oper.table_name(), create_table_select_oper.expr_names()));
+  oper = unique_ptr<PhysicalOperator>(new CreateTableSelectPhysicalOperator(create_table_select_oper.get_db(), create_table_select_oper.table_name(), create_table_select_oper.expr_names(), create_table_select_oper.star_field_names()));
   oper->add_child(std::move(child_phy_oper));
   return rc;
 }

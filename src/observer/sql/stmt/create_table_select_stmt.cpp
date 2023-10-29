@@ -30,8 +30,9 @@ RC CreateTableSelectStmt::create(Db *db, const CreateTableSqlNode &create_table,
   const auto &query_fields = cast_select_stmt->query_fields();
   const auto &exprs = cast_select_stmt->query_expressions();
   const auto &expr_names = cast_select_stmt->query_expressions_names();
+  const auto &star_field_names = cast_select_stmt->star_field_names();
 
-  stmt = new CreateTableSelectStmt(create_table.relation_name, expr_names, cast_select_stmt, db);
+  stmt = new CreateTableSelectStmt(create_table.relation_name, expr_names, star_field_names, cast_select_stmt, db);
   // extract 
   return RC::SUCCESS;
 }

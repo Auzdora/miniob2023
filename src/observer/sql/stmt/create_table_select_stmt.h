@@ -30,9 +30,11 @@ class Db;
 class CreateTableSelectStmt : public Stmt
 {
 public:
-  CreateTableSelectStmt(const std::string &table_name, const std::vector<std::string> &field_names, SelectStmt *select_stmt, Db *db)
+  CreateTableSelectStmt(const std::string &table_name, const std::vector<std::string> &field_names, 
+  const std::vector<std::string> &star_field_name, SelectStmt *select_stmt, Db *db)
         : table_name_(table_name),
           field_names_(field_names),
+          star_field_names_(star_field_name),
           select_stmt_(select_stmt),
           db_(db)
   {}
@@ -42,6 +44,7 @@ public:
 
   const std::string &table_name() const { return table_name_; }
   const std::vector<std::string> &field_names() const { return field_names_; }
+  const std::vector<std::string> &star_field_names() const { return star_field_names_; }
   const std::vector<AttrInfoSqlNode> &attr_infos() const { return attr_infos_; }
   Db *get_db() { return db_; }
   SelectStmt *select_stmt() const { return select_stmt_; }
@@ -53,5 +56,6 @@ private:
   std::string table_name_;
   std::vector<std::string> field_names_;
   std::vector<AttrInfoSqlNode> attr_infos_;
+  std::vector<std::string> star_field_names_;
   SelectStmt *select_stmt_;
 };
