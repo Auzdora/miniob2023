@@ -74,6 +74,7 @@ RC AggregationPhysicalOperator::next()
           aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
       }
       else{
+        aggr_results_.push_back(Value());
         aggr_results_[i].set_null();
       }
     }
