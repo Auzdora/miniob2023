@@ -448,6 +448,14 @@ public:
     right_ = right;
   }
 
+  Tuple * get_left(){
+    return left_;
+  }
+
+  Tuple * get_right(){
+    return right_;
+  }
+
   int cell_num() const override
   {
     return left_->cell_num() + right_->cell_num();

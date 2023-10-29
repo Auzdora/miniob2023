@@ -301,6 +301,8 @@ RC LogicalPlanGenerator::create_plan(
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(
         filter_unit->comp(), std::move(left), std::move(right));
+    auto lf = cmp_expr->left() == nullptr;
+    auto cp = cmp_expr->comp();
     cmp_exprs.emplace_back(cmp_expr);
   }
 

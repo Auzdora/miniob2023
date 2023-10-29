@@ -60,15 +60,34 @@ RC PredicatePhysicalOperator::next()
     /// 有子查询的情况
     if (children_.size() > 1)
     {
-      if (parent_tuple == nullptr) {
-        parent_tuple = tuple;
-        join_tuple->set_left(parent_tuple);
+      if (top_tuple->get_left() == nullptr)
+      {
+        top_tuple->set_left(tuple);
       }
+      else{
+        JoinedTuple *subJointuple = new JoinedTuple();
+        subJointuple->set_left(tuple);
+        subJointuple->set_right(&(*top_tuple));
+        top_tuple = subJointuple;
+      }
+
+      // if (sub_queries_tuple.empty()){
+      //   sub_queries_tuple.push_back(tuple);
+      //   level++;
+      //   // if (sub_queries_tuple[level] == nullptr) {
+      //   //   parent_tuple = tuple;
+      //   //   join_tuple->set_left(parent_tuple);
+      //   // }
+      // } else{
+      //   sub_queries_tuple[level - 1]
+      // }
+
+      
       switch (expression_->type())
       {
       case ExprType::COMPARISON:
         {
-          rc = do_compare_expr(*join_tuple,value);
+          rc = do_compare_expr(*top_tuple,value);
           if (rc != RC::SUCCESS) {
             clear_global_tuple();
             return rc;
@@ -85,7 +104,7 @@ RC PredicatePhysicalOperator::next()
             {
             case ExprType::COMPARISON:
              {
-              rc = do_compare_expr(*join_tuple,value);
+              rc = do_compare_expr(*top_tuple,value);
               if (rc != RC::SUCCESS) {
                 clear_global_tuple();
                 return rc;
@@ -106,17 +125,12 @@ RC PredicatePhysicalOperator::next()
       default:
         break;
       }
-      join_tuple->set_left(nullptr);
-      join_tuple->set_right(nullptr);
-      clear_global_tuple();
+      top_tuple->set_left(nullptr);
     }
     else {
-      if (sub_select_tuple == nullptr) {
-        sub_select_tuple = tuple;
-        join_tuple->set_right(sub_select_tuple);
-      }
-      rc = expression_->get_value(*join_tuple, value);
-      clear_global_tuple();
+      top_tuple->set_left(tuple);
+      rc = expression_->get_value(*top_tuple, value);
+      top_tuple->set_left(nullptr);
     }
     if (rc != RC::SUCCESS) {
       clear_global_tuple();
