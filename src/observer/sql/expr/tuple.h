@@ -422,6 +422,8 @@ public:
     return RC::INTERNAL;
   }
 
+  const std::vector<Value> &get_cells() const { return cells_; }
+
 private:
   std::vector<Value> cells_;
 };
@@ -446,6 +448,14 @@ public:
     right_ = right;
   }
 
+  Tuple * get_left(){
+    return left_;
+  }
+
+  Tuple * get_right(){
+    return right_;
+  }
+
   int cell_num() const override
   {
     return left_->cell_num() + right_->cell_num();
@@ -467,9 +477,11 @@ public:
 
   RC find_cell(const TupleCellSpec &spec, Value &value) const override
   {
-    RC rc = left_->find_cell(spec, value);
-    if (rc == RC::SUCCESS || rc != RC::NOTFOUND) {
-      return rc;
+    if (left_ != nullptr) {
+      RC rc = left_->find_cell(spec, value);
+      if (rc == RC::SUCCESS || rc != RC::NOTFOUND) {
+        return rc;
+      }
     }
 
     return right_->find_cell(spec, value);

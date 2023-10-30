@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "sql/expr/expression.h"
 #include "sql/operator/aggr_logical_operator.h"
+#include "sql/operator/create_table_select_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
@@ -33,6 +34,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/calc_stmt.h"
+#include "sql/stmt/create_table_select_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/update_stmt.h"
@@ -80,6 +82,12 @@ RC LogicalPlanGenerator::create(Stmt *stmt,
     ExplainStmt *explain_stmt = static_cast<ExplainStmt *>(stmt);
     rc = create_plan(explain_stmt, logical_operator);
   } break;
+
+  case StmtType::CREATE_TABLE_SELECT: {
+    CreateTableSelectStmt *create_table_select_stmt = static_cast<CreateTableSelectStmt *>(stmt);
+    rc = create_plan(create_table_select_stmt, logical_operator);
+  } break;
+
   default: {
     rc = RC::UNIMPLENMENT;
   }
@@ -104,10 +112,10 @@ RC LogicalPlanGenerator::create_plan(
   int inner_join_idx = 0;
   const std::vector<std::string> &all_aggr_funcs = select_stmt->aggr_funcs();
   // only support aggr on one table for now
-  if (!all_aggr_funcs.empty() && tables.size() > 1) {
-    LOG_WARN("do not support aggregation on multiple tables");
-    return RC::INTERNAL;
-  }
+  // if (!all_aggr_funcs.empty() && tables.size() > 1) {
+  //   LOG_WARN("do not support aggregation on multiple tables");
+  //   return RC::INTERNAL;
+  // }
 
   bool contain_expression = false;
   if (select_stmt->query_fields().size() > select_stmt->query_expressions().size()) {
@@ -267,6 +275,8 @@ RC LogicalPlanGenerator::create_plan(
     if (left->type() == ExprType::SUBSELECT)
     {
       SubSelectExpr * subselect_expr = static_cast<SubSelectExpr *>(left.get());
+      
+      subselect_expr->get_subsqlNode().rel_alias.insert(filter_stmt->get_rel_alias().begin(), filter_stmt->get_rel_alias().end());
       if(RC::SUCCESS != subselect_expr->create_stmt())
         return RC::INTERNAL;
       unique_ptr<LogicalOperator> subselect_loper = nullptr;
@@ -279,6 +289,7 @@ RC LogicalPlanGenerator::create_plan(
     if (right->type() == ExprType::SUBSELECT)
     {
       SubSelectExpr * subselect_expr = static_cast<SubSelectExpr *>(right.get());
+      subselect_expr->get_subsqlNode().rel_alias.insert(filter_stmt->get_rel_alias().begin(), filter_stmt->get_rel_alias().end());
       if(RC::SUCCESS != subselect_expr->create_stmt())
         return RC::INTERNAL;
       unique_ptr<LogicalOperator> subselect_loper = nullptr;
@@ -290,6 +301,8 @@ RC LogicalPlanGenerator::create_plan(
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(
         filter_unit->comp(), std::move(left), std::move(right));
+    auto lf = cmp_expr->left() == nullptr;
+    auto cp = cmp_expr->comp();
     cmp_exprs.emplace_back(cmp_expr);
   }
 
@@ -450,4 +463,17 @@ RC LogicalPlanGenerator::create_plan(
   logical_operator = std::move(update_oper);
   return rc;
 
+}
+
+RC LogicalPlanGenerator::create_plan(
+    CreateTableSelectStmt *create_table_select_stmt, unique_ptr<LogicalOperator> &logical_operator) {
+  
+  unique_ptr<LogicalOperator> select_oper;
+  LogicalPlanGenerator::create_plan(create_table_select_stmt->select_stmt(), select_oper);
+
+  unique_ptr<LogicalOperator> create_table_select_oper(new CreateTableSelectLogicalOperator(create_table_select_stmt->table_name(), create_table_select_stmt->field_names(), create_table_select_stmt->star_field_names(), create_table_select_stmt->get_db()));
+  create_table_select_oper->add_child(std::move(select_oper));
+  
+  logical_operator = std::move(create_table_select_oper);
+  return RC::SUCCESS;
 }

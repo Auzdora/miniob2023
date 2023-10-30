@@ -63,6 +63,10 @@ RC AggregationPhysicalOperator::next()
     cnt++;
   }
 
+  if (rc == RC::INTERNAL) {
+    return rc;
+  }
+
   // finish all aggregation
   for (int i = 0; i < aggr_funcs_.size(); i++) {
     if (aggr_funcs_[i] == "avg") {
@@ -74,12 +78,31 @@ RC AggregationPhysicalOperator::next()
           aggr_results_[i].set_float(aggr_results_[i].get_float() / avg_count_results_[i]);
       }
       else{
+        aggr_results_.push_back(Value());
         aggr_results_[i].set_null();
       }
     }
     if (aggr_funcs_[i] == "count") {
       if (avg_count_results_.empty()) {
         aggr_results_.push_back(Value(0));
+      }
+    }
+    if (aggr_funcs_[i] == "min") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value());
+        aggr_results_[i].set_null();
+      }
+    }
+    if (aggr_funcs_[i] == "max") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value());
+        aggr_results_[i].set_null();
+      }
+    }
+    if (aggr_funcs_[i] == "null") {
+      if (avg_count_results_.empty()) {
+        aggr_results_.push_back(Value());
+        aggr_results_[i].set_null();
       }
     }
   }

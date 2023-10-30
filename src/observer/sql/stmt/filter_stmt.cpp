@@ -31,7 +31,7 @@ FilterStmt::~FilterStmt() {
 RC FilterStmt::create(Db *db, Table *default_table,
                       std::unordered_map<std::string, Table *> *tables,
                       const ConditionSqlNode *conditions, int condition_num,
-                      FilterStmt *&stmt) {
+                      FilterStmt *&stmt, const std::unordered_map<std::string, std::string> &rel_alias) {
   RC rc = RC::SUCCESS;
   stmt = nullptr;
 
@@ -49,6 +49,7 @@ RC FilterStmt::create(Db *db, Table *default_table,
   }
 
   stmt = tmp_stmt;
+  stmt->rel_alias_ = rel_alias;
   return rc;
 }
 
@@ -190,7 +191,7 @@ RC FilterStmt::Init_filter_unit(
   case CON_CALC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.left_expr_node.expression);
-    filter_obj.expr->init(db, default_table);
+    filter_obj.expr->init(db, default_table, tables);
     filter_unit->set_left(filter_obj);
   } break;
   case CON_SUBSELECT_T:
@@ -212,7 +213,7 @@ RC FilterStmt::Init_filter_unit(
   case CON_FUNC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.left_expr_node.expression);
-    filter_obj.expr->init(db, default_table);
+    filter_obj.expr->init(db, default_table, tables);
     filter_unit->set_left(filter_obj);
   } break;
   default: {
@@ -263,13 +264,13 @@ RC FilterStmt::Init_filter_unit(
   case CON_CALC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.right_expr_node.expression);
-    filter_obj.expr->init(db, default_table);
+    filter_obj.expr->init(db, default_table, tables);
     filter_unit->set_right(filter_obj);
   } break;
   case CON_FUNC_T: {
     FilterObj filter_obj;
     filter_obj.init_expression(condition.right_expr_node.expression);
-    filter_obj.expr->init(db, default_table);
+    filter_obj.expr->init(db, default_table, tables);
     filter_unit->set_right(filter_obj);
   } break;
   default: {

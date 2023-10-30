@@ -18,12 +18,33 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include <cmath>
+#include "common/globals.h"
 
 using namespace std;
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const {
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  RC rc = tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  if (field_.meta() != nullptr) {
+    value.set_nullable(field_.meta()->nullable());
+  }
+  return rc;
 }
+
+RC FieldExpr::get_values(const Tuple &tuple, std::vector<Value> &values) const {
+  std::vector<Value> vals;
+  const TableMeta &table_meta = star_table_->table_meta();
+  const int user_field_start_idx = table_meta.sys_field_num() + table_meta.custom_fields_num();
+  for (int i = user_field_start_idx; i < star_table_->table_meta().field_num(); i++) {
+    Value tmp_val;
+    const FieldMeta *field_meta = star_table_->table_meta().field(i);
+    tuple.find_cell(TupleCellSpec(table_name(), field_meta->name()), tmp_val);
+    tmp_val.set_nullable(field_meta->nullable());
+    vals.push_back(tmp_val);
+  }
+  values = vals;
+  return RC::SUCCESS;
+}
+
 
 RC ValueExpr::get_value(const Tuple &tuple, Value &value) const {
   value = value_;
@@ -435,7 +456,7 @@ std::string FunctionExpr::format_date(int date_int, const std::string& format) c
                     static const std::array<std::string, 31> suffixes = {
                         "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th",
                         "th", "th", "th", "th", "th", "th", "th", "th", "th", "th",
-                        "th", "th", "rd", "th", "th", "th", "th", "th", "th", "th", "st"
+                        "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "st"
                     };
                     result += std::to_string(day) + suffixes[day - 1];
                 } break;
@@ -446,8 +467,8 @@ std::string FunctionExpr::format_date(int date_int, const std::string& format) c
                     };
                     result += months[month - 1];
                 } break;
-                case 'z': result += std::to_string(year); break;
-                case 'n': result += std::to_string(month); break;
+                case 'z': result += 'z'; break;
+                case 'n': result += 'n'; break;
                 default: result += format[i]; break;
             }
             i++; // Skip next character

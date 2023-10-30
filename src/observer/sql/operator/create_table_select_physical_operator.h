@@ -9,35 +9,34 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by WangYunlai on 2022/6/27.
+// Created by Lanbotian on 2023/10/29.
 //
 
 #pragma once
 
-#include <memory>
-#include "sql/operator/physical_operator.h"
+#include "event/sql_event.h"
 #include "sql/expr/expression.h"
-
-class FilterStmt;
+#include "sql/operator/physical_operator.h"
+#include "sql/parser/value.h"
+#include "storage/db/db.h"
+#include <memory>
 
 /**
- * @brief 过滤/谓词物理算子
+ * @brief 复制表
  * @ingroup PhysicalOperator
  */
-class PredicatePhysicalOperator : public PhysicalOperator
+class CreateTableSelectPhysicalOperator : public PhysicalOperator
 {
 public:
-  PredicatePhysicalOperator(std::unique_ptr<Expression> expr);
-  PredicatePhysicalOperator(std::unique_ptr<Expression> expr,std::vector<std::string> subselect_expr_names);
-  virtual ~PredicatePhysicalOperator() = default;
+  CreateTableSelectPhysicalOperator(Db *db, std::string table_name, const std::vector<std::string> &expr_names, const std::vector<std::string> &star_field_name) : db_(db), table_name_(table_name), expr_names_(expr_names), star_field_names_(star_field_name)
+  {}
+
+  virtual ~CreateTableSelectPhysicalOperator() = default;
 
   PhysicalOperatorType type() const override
   {
-    return PhysicalOperatorType::PREDICATE;
+    return PhysicalOperatorType::CREATE_TABLE_SELECT;
   }
-  
-  RC do_compare_expr(Tuple &tuple,Value &value, std::unique_ptr<Expression> &expr);
-  RC InOpFunc(PhysicalOperator *&child,Value &left_value,Value &value, CompOp comp);
 
   RC open(Trx *trx) override;
   RC next() override;
@@ -46,7 +45,10 @@ public:
   Tuple *current_tuple() override;
 
 private:
-  std::unique_ptr<Expression> expression_;
-  std::vector<std::string>    subselect_expr_names_;
+  Db *db_;
+  std::string table_name_;
+  std::vector<std::string> expr_names_;
+  std::vector<std::string> star_field_names_;
+  bool first_call_{true};
   Trx *trx_;
 };

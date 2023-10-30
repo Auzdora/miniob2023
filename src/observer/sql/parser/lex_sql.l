@@ -134,6 +134,11 @@ AS                                      RETURN_TOKEN(AS);
 IN                                      RETURN_TOKEN(IN);
 EXISTS                                  RETURN_TOKEN(EXISTS);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
+SUM                                     RETURN_TOKEN(SUM);
+MIN                                     RETURN_TOKEN(MIN);
+MAX                                     RETURN_TOKEN(MAX);
+AVG                                     RETURN_TOKEN(AVG);
+COUNT                                   RETURN_TOKEN(COUNT);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
 

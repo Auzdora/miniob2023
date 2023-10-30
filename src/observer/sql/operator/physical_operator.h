@@ -51,6 +51,7 @@ enum class PhysicalOperatorType
   UPDATE,
   AGGREGATION,
   SORT,
+  CREATE_TABLE_SELECT,
 };
 
 

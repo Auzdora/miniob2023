@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <stddef.h>
 #include <string>
 #include <vector>
-
+#include <unordered_map>
 #include "sql/parser/value.h"
 
 class Expression;
@@ -35,8 +35,9 @@ class Expression;
  * Attr -> Attribute
  */
 struct RelAttrSqlNode {
-  std::string relation_name;  ///< relation name (may be NULL) 表名
+  std::string relation_name;  ///< relation name (may be NULL) 表名，可能是alias，需要在stmt做映射解析
   std::string attribute_name; ///< attribute name              属性名
+  std::string attribute_alias;     ///< attribute alias             属性别名
 };
 
 /**
@@ -46,9 +47,10 @@ struct RelAttrSqlNode {
  */
 struct AggrAttrSqlNode
 {
-  std::string relation_name;      ///< 表名
+  std::string relation_name;      ///< 表名，可能是alias，需要在stmt做映射解析
   std::string aggregation_name;   ///< aggregation name          聚合函数名
   std::string attribute_name;     ///< attribute name            属性名
+  std::string alias;
 };
 
 
@@ -172,6 +174,17 @@ struct OrderBySqlNode
 };
 
 /**
+ * @brief 描述一个relation，也就是表名，包含alias和原名
+ * @ingroup SQLParser
+ * @details 
+ */
+struct RelSqlNode {
+  std::string relation_name;               ///< Relation to insert into;
+  std::string alias;
+};
+
+
+/**
  * @brief 描述一个select语句
  * @ingroup SQLParser
  * @details 一个正常的select语句描述起来比这个要复杂很多，这里做了简化。
@@ -186,11 +199,12 @@ struct SelectSqlNode
 {
   std::vector<AggrAttrSqlNode>    aggregations;  ///< aggregation functions in select clause
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
-  std::vector<std::string>        relations;     ///< 查询的表
+  std::vector<RelSqlNode>         relations;     ///< 查询的表
   std::vector<InnerJoinSqlNode>   innerJoins;    ///< inner join语句
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
   std::vector<OrderBySqlNode>     orderbys;      ///< order by语法支持
   std::vector<ExprSqlNode>        expressions;   ///< 支持exression表达式
+  std::unordered_map<std::string, std::string> rel_alias; ///< 原名到别名的映射
 };
 
 /**
@@ -261,6 +275,7 @@ struct AttrInfoSqlNode {
 struct CreateTableSqlNode {
   std::string relation_name;               ///< Relation name
   std::vector<AttrInfoSqlNode> attr_infos; ///< attributes
+  bool use_select;                         ///< indicate it is a copy create
 };
 
 /**
@@ -361,6 +376,7 @@ enum SqlCommandFlag {
   SCF_UPDATE,
   SCF_DELETE,
   SCF_CREATE_TABLE,
+  SCF_CREATE_TABLE_SELECT,
   SCF_DROP_TABLE,
   SCF_CREATE_INDEX,
   SCF_DROP_INDEX,

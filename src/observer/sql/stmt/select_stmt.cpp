@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/stmt/select_stmt.h"
+#include "sql/expr/expression.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
@@ -54,11 +55,25 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return RC::INVALID_ARGUMENT;
   }
 
+  // create a map between alias and original name which stored in database
+  // whenever you access a table or attr using alias, you have to lookup
+  // this map first
+  std::unordered_map<std::string, std::string> rel_alias_map;
+  for (size_t i = 0; i < select_sql.relations.size(); i++) {
+    if (!select_sql.relations[i].alias.empty()) {
+      auto it = rel_alias_map.find(select_sql.relations[i].alias);
+      if (it != rel_alias_map.end()) {
+        return RC::INTERNAL;
+      }
+      rel_alias_map.insert(std::pair<std::string, std::string>(select_sql.relations[i].alias, select_sql.relations[i].relation_name));
+    }
+  }
+
   // collect tables in `from` statement
   std::vector<Table *> tables;
   std::unordered_map<std::string, Table *> table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+    const char *table_name = select_sql.relations[i].relation_name.c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -72,6 +87,25 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
     tables.push_back(table);
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
+    if (!select_sql.relations[i].alias.empty()) {
+      table_map.insert(std::pair<std::string, Table *>(select_sql.relations[i].alias.c_str(), table));
+    }
+  }
+
+  for (const auto &[relation_name, alias] : select_sql.rel_alias) {
+    auto it = table_map.find(relation_name);
+    if (it != table_map.end()) {
+      continue;
+    }
+    Table *table = db->find_table(relation_name.c_str());
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), relation_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    table_map.insert(std::pair<std::string, Table *>(relation_name, table));
+    if (!alias.empty()) {
+      table_map.insert(std::pair<std::string, Table *>(alias, table));
+    }
   }
 
   // collect join tables in `inner join` statement
@@ -94,6 +128,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
+  std::vector<std::string> star_field_names;
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
     const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
 
@@ -101,6 +136,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       for (Table *table : tables) {
         wildcard_fields(table, query_fields);
+        for (const auto &field : query_fields) {
+          star_field_names.push_back(field.field_name());
+        }
       }
 
     } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
@@ -115,6 +153,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         for (Table *table : tables) {
           wildcard_fields(table, query_fields);
         }
+      } else if (0 != strcmp(table_name, "*") && 0 == strcmp(field_name, "*")){
+        Table *table = table_map.at(table_name);
+        wildcard_fields(table, query_fields);
       } else {
         auto iter = table_map.find(table_name);
         if (iter == table_map.end()) {
@@ -175,9 +216,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       aggr_funcs.push_back(aggr_attr.aggregation_name);
       continue;
     }
-    const FieldMeta *field_meta = default_table->table_meta().field(aggr_attr.attribute_name.c_str());
+    Table *table;
+    if (default_table != nullptr) {
+      table = default_table;
+    } else {
+      table = table_map.at(aggr_attr.relation_name);;
+    }
+    const FieldMeta *field_meta = table->table_meta().field(aggr_attr.attribute_name.c_str());
     if (nullptr == field_meta) {
-      LOG_WARN("no such field. field=%s.%s.%s", db->name(), default_table->name(), aggr_attr.attribute_name.c_str());
+      LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), aggr_attr.attribute_name.c_str());
       return RC::SCHEMA_FIELD_MISSING;
     }
     aggr_funcs.push_back(aggr_attr.aggregation_name);
@@ -194,7 +241,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       &table_map,
       select_sql.innerJoins[i].conditions.data(),
       static_cast<int>(select_sql.innerJoins[i].conditions.size()),
-      filter_stmt);
+      filter_stmt, select_sql.rel_alias);
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot construct filter stmt");
       return rc;
@@ -209,7 +256,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       &table_map,
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
-      filter_stmt);
+      filter_stmt, select_sql.rel_alias);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
@@ -251,7 +298,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     if (expr == nullptr) {
       continue;
     }
-    expr->init(db, default_table);
+    expr->init(db, default_table, &table_map);
+    if (expr->star_expr()) {
+      const auto &star_expr = static_cast<FieldExpr *>(expr);
+      for (const auto &name : star_expr->names()) {
+        query_expressions_names.push_back(name);
+      }
+      query_expressions.push_back(expr);
+      continue;
+    }
     query_expressions.push_back(expr);
     query_expressions_names.push_back(expr->name());
   }
@@ -268,6 +323,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->sort_types_.swap(sort_types);
   select_stmt->query_expressions_.swap(query_expressions);
   select_stmt->query_expressions_names_.swap(query_expressions_names);
+  select_stmt->start_field_names_.swap(star_field_names);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

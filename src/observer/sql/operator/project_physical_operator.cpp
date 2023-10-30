@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "common/log/log.h"
+#include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/operator/physical_operator.h"
 #include "sql/operator/project_physical_operator.h"
@@ -77,6 +78,16 @@ RC ProjectPhysicalOperator::next()
     std::vector<Value> cells;
     Value cell;
     for (const auto &expr : expressions_) {
+      if (expr->star_expr()) {
+        std::vector<Value> tmp_cells;
+        const auto &field_expr = static_cast<FieldExpr *>(expr.get());
+        field_expr->get_values(*tuple, tmp_cells);
+        std::reverse(tmp_cells.begin(), tmp_cells.end());
+        for (const auto &val : tmp_cells) {
+          cells.push_back(val);
+        }
+        continue;
+      }
       rc = expr->get_value(*tuple, cell);
       if (rc != RC::SUCCESS) {
         LOG_INFO("project expression operator get value error");

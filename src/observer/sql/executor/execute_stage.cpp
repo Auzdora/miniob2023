@@ -71,7 +71,7 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       bool with_aggregation_name = select_stmt->aggr_funcs().size() > 0;
 
       if (!select_stmt->query_expressions().empty()) {
-        for (int i = select_stmt->query_expressions().size()-1; i >= 0; i--) {
+        for (int i = select_stmt->query_expressions_names().size()-1; i >= 0; i--) {
           schema.append_cell(select_stmt->query_expressions_names()[i].c_str());
         }
       } else {

@@ -140,10 +140,11 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   // 构建filter_stmt
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  std::unordered_map<std::string, std::string> rel_alias;
   FilterStmt *filter_stmt = nullptr;
   RC rc = FilterStmt::create(db, table, &table_map,
         update.conditions.data(),
-        static_cast<int>(update.conditions.size()), filter_stmt);
+        static_cast<int>(update.conditions.size()), filter_stmt, rel_alias);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;
