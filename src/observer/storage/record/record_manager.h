@@ -267,6 +267,7 @@ public:
     if (disk_buffer_pool_ != nullptr){
       disk_buffer_pool_ = nullptr;
     }
+    text_len_ = 0;
   };
 
   RC init(DiskBufferPool &buffer_pool);

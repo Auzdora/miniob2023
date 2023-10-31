@@ -594,6 +594,7 @@ RC RecordFileScanner::fetch_next_record_in_page()
     // 有text 字段，获取text信息到record中
     if (text_page_handler_.is_valid())
     {
+      next_record_.clear_text();
       rc = text_page_handler_.get_text(next_record_,text_offset_);
        for (auto field : *(table_->table_meta().field_metas()))
         {
@@ -712,6 +713,7 @@ RC TextPageHandler::cleanup(){
     frames_.clear();
     page_header_ = nullptr;
     empty_frame_ = nullptr;
+    text_len_ = 0;
   }
   return RC::SUCCESS;
 }
@@ -750,12 +752,19 @@ bool TextPageHandler::check_page_is_text(PageNum page_num)
 {
   Frame * frame;
   if ((disk_buffer_pool_->get_this_page(page_num, &frame)) != RC::SUCCESS) {
+    frame->unpin();
     return false;
   }
   if (frame->page_type() == PageType::TEXTPAGE)
+  {
+    frame->unpin();
     return true;
-  else 
+  }
+  else {
+    frame->unpin();
     return false;
+  }
+
 }
 
 RC TextPageHandler::init_empty_pages(int text_size)
@@ -885,6 +894,7 @@ RC TextPageHandler::get_text(Record &rec,int text_offset){
   rec.set_read_text(get_text_data());
   rec.set_text_len(text_len_);
   rec.set_has_text();
+  cleanup();
   return RC::SUCCESS;
 }
 

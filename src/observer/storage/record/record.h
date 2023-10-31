@@ -181,6 +181,10 @@ public:
         text_data_.clear();
       }
     }
+    // if (!text_data_.empty())
+    // {
+    //   text_data_.clear();
+    // }
   }
 
   Record(const Record &other)
@@ -243,7 +247,17 @@ public:
   }
 
   void set_read_text(char *text){
-    text_data_ = std::move(text);
+    text_data_.assign(text);
+    free(text);
+  }
+
+  void clear_text()
+  {
+    if (!text_data_.empty())
+    {
+      text_data_.clear();
+      text_len_ = 0;
+    }
   }
   void set_text_len(int32_t text_len)
   {
