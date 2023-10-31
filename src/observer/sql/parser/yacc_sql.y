@@ -739,10 +739,14 @@ select_stmt:        /*  select 语句的语法解析树*/
           }
         }
         for (int i=0; i < $$->selection.aggregations.size(); i++) {
-          if ($$->selection.aggregations[i].relation_name.empty()) {
-            $$->selection.attributes[i].relation_name = $4;
+          if ($$->selection.use_group_by) {
+            if ($$->selection.aggregations[i].relation_name.empty()) {
+              $$->selection.attributes[i].relation_name = $4;
+            } else {
+              $$->selection.attributes[i].relation_name = $$->selection.aggregations[i].relation_name;
+            }
           } else {
-            $$->selection.attributes[i].relation_name = $$->selection.aggregations[i].relation_name;
+            $$->selection.attributes[i].relation_name = $4;
           }
         }
         delete $2;
@@ -794,7 +798,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $11;
       }
       aggregation_cnt = 0;
-      aggr_start_offset = 0;
+      // aggr_start_offset = 0;
     }
     | SELECT expression_list
     {
@@ -1053,7 +1057,6 @@ expression:
         $$->expression->set_name(token_name(sql_string, &@$));
       }
       $$->attributes.emplace_back(*$1);
-      aggr_start_offset++;
       delete $1;
     }
     | aggr_attr {
@@ -1061,7 +1064,7 @@ expression:
       $$->expression = new AggregationExpr($1->aggregation_name,$1->attribute_name);
       $$->expression->set_name(token_name(sql_string, &@$));
       $$->aggregations.emplace_back(*$1);
-      $$->expression->set_index(aggregation_cnt+aggr_start_offset);
+      $$->expression->set_index(aggregation_cnt);
       aggregation_cnt++;
       RelAttrSqlNode *rel_node = new RelAttrSqlNode;
       rel_node->attribute_name = $1->attribute_name;

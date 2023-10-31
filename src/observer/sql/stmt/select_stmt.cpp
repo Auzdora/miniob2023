@@ -362,12 +362,18 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // collect query expressions information
   std::vector<Expression *> query_expressions;
   std::vector<std::string> query_expressions_names;
+  int offset_for_group_by = select_sql.attributes.size() - select_sql.aggregations.size();
   for (int i=0; i < select_sql.expressions.size(); i++) {
     Expression *expr = select_sql.expressions[i].expression;
     if (expr == nullptr) {
       continue;
     }
     expr->init(db, default_table, &table_map);
+    if (select_sql.use_group_by) {
+      if (expr->type() == ExprType::AGGREGATION) {
+        expr->set_index(expr->index() + offset_for_group_by);
+      }
+    }
     if (expr->star_expr()) {
       const auto &star_expr = static_cast<FieldExpr *>(expr);
       for (const auto &name : star_expr->names()) {
