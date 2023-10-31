@@ -63,6 +63,11 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
         continue;
       }
       if (field_type != value_type) {  // TODO try to convert the value type to field type
+        if (value_type == CHARS && field_type == TEXTS)
+        {
+          value[i].cast_type_to(TEXTS);
+          continue;
+        }
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
             table_name, field_meta->name(), field_type, value_type);
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;

@@ -135,6 +135,7 @@ DATE_FORMAT                             RETURN_TOKEN(DATE_FORMAT);
 AS                                      RETURN_TOKEN(AS);
 IN                                      RETURN_TOKEN(IN);
 EXISTS                                  RETURN_TOKEN(EXISTS);
+TEXT                                    RETURN_TOKEN(TEXT_T);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 SUM                                     RETURN_TOKEN(SUM);
 MIN                                     RETURN_TOKEN(MIN);

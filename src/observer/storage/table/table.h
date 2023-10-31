@@ -25,6 +25,7 @@ struct RID;
 class Record;
 class DiskBufferPool;
 class RecordFileHandler;
+class TextPageHandler;
 class RecordFileScanner;
 class ConditionFilter;
 class DefaultConditionFilter;
@@ -138,5 +139,6 @@ private:
   TableMeta   table_meta_;
   DiskBufferPool *data_buffer_pool_ = nullptr;   /// 数据文件关联的buffer pool
   RecordFileHandler *record_handler_ = nullptr;  /// 记录操作
+  TextPageHandler *text_handler_ = nullptr;       /// text 数据操作
   std::vector<Index *> indexes_;
 };

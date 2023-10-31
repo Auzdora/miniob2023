@@ -85,6 +85,7 @@ int aggr_start_offset = 0; // for group by and aggr
         FLOAT_T
         DATE_T
         NULL_T
+        TEXT_T
         HELP
         EXIT
         DOT //QUOTE
@@ -471,7 +472,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = $4;
+      $$->length = $4;                // 没考虑 text 指定长度的情况
       $$->nullable = $6;
       free($1);
     }
@@ -480,7 +481,10 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 4;
+      if ($2 == TEXTS)
+        $$->length = 8;             // 等于 text 头部数据长度 4字节的length 和4字节的数据起始地址
+      else
+        $$->length = 4;
       $$->nullable = $3;
       free($1);
     }
@@ -507,6 +511,7 @@ type:
     | STRING_T { $$=CHARS; }
     | FLOAT_T  { $$=FLOATS; }
     | DATE_T   { $$=DATES; }
+    | TEXT_T   { $$=TEXTS; }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
     INSERT INTO ID VALUES value_lists
@@ -564,6 +569,8 @@ value:
     }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);
+      if (strlen(tmp) > 65535)
+        return -1;
       $$ = new Value(tmp);
       free(tmp);
     }
@@ -591,6 +598,8 @@ expr_value:
     }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);
+      if (strlen(tmp) > 65535)
+        return -1;
       $$ = new Value(tmp);
       free(tmp);
     }

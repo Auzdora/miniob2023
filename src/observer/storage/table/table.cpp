@@ -38,6 +38,11 @@ Table::~Table()
     record_handler_ = nullptr;
   }
 
+  if (text_handler_ != nullptr){
+    delete text_handler_;
+    text_handler_ = nullptr;
+  }
+
   if (data_buffer_pool_ != nullptr) {
     data_buffer_pool_->close_file();
     data_buffer_pool_ = nullptr;
@@ -230,9 +235,20 @@ RC Table::open(const char *meta_file, const char *base_dir)
 RC Table::insert_record(Record &record, bool mvcc_unique_update)
 {
   RC rc = RC::SUCCESS;
+  // 如果record中有text 字段 ，先插入text信息
+  if (record.has_text())
+  {
+    rc = text_handler_->insert_text(record,&record.rid());
+    if (rc != RC::SUCCESS){
+      return rc;
+    }
+  }
+
   rc = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid());
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
+    if (text_handler_)
+      text_handler_->delete_text(&record.rid());
     return rc;
   }
 
@@ -240,6 +256,8 @@ RC Table::insert_record(Record &record, bool mvcc_unique_update)
   if (rc != RC::SUCCESS) { // 可能出现了键值重复
     if (rc == RC::UNIQUE_DUPLICATE) {
       RC rc2 = record_handler_->delete_record(&record.rid());
+      if (text_handler_)
+        rc2 = text_handler_->delete_text(&record.rid());
       if (rc2 != RC::SUCCESS) {
         LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                   name(), rc2, strrc(rc2));
@@ -252,6 +270,8 @@ RC Table::insert_record(Record &record, bool mvcc_unique_update)
                 name(), rc2, strrc(rc2));
     }
     rc2 = record_handler_->delete_record(&record.rid());
+    if (text_handler_)
+        rc2 = text_handler_->delete_text(&record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -265,7 +285,7 @@ RC Table::visit_record(const RID &rid, bool readonly, std::function<void(Record 
   return record_handler_->visit_record(rid, readonly, visitor);
 }
 
-RC Table::get_record(const RID &rid, Record &record)
+RC Table::get_record(const RID &rid, Record &record) 
 {
   const int record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
@@ -331,6 +351,12 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 
   const int custom_field_start_index = table_meta_.sys_field_num();
   const int normal_field_start_index = table_meta_.custom_fields_num() + custom_field_start_index;
+  // int system_field_offset = 0;
+  // for (int i =0; i < normal_field_start_index; i++)
+  // {
+  //   system_field_offset += table_meta_.field(i)->len();
+  // }
+  
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
@@ -353,6 +379,8 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   // 复制所有字段的值
   int record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
+  // text 控制变量
+  bool has_text = false;
 
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
@@ -363,6 +391,19 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
       if (copy_len > data_len) {
         copy_len = data_len + 1;
       }
+    }
+    if (field->type() == TEXTS)
+    {
+      if (has_text)
+        return RC::INTERNAL;
+      has_text = true;
+      record.set_has_text();
+      record.set_text_offset(field->offset());
+      textMeta textmeta = {0,value.length()};
+      // 获取text 的实际地址
+      record.set_write_text(value.data(),value.length());
+      memcpy(record_data + field->offset(),(const char *)&textmeta,field->len());
+      continue;
     }
     if (value.is_null()){
       null_bitmap.set_bit(i);
@@ -395,13 +436,17 @@ RC Table::init_record_handler(const char *base_dir)
   }
 
   record_handler_ = new RecordFileHandler();
+  text_handler_ = new TextPageHandler();
   rc = record_handler_->init(data_buffer_pool_);
+  rc = text_handler_->init(*data_buffer_pool_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to init record handler. rc=%s", strrc(rc));
     data_buffer_pool_->close_file();
     data_buffer_pool_ = nullptr;
     delete record_handler_;
     record_handler_ = nullptr;
+    delete text_handler_;
+    text_handler_ = nullptr;
     return rc;
   }
 
@@ -578,6 +623,7 @@ RC Table::delete_record(const Record &record, bool mvcc_unique_update)
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }
   rc = record_handler_->delete_record(&record.rid());
+  rc = text_handler_->delete_text(&record.rid());
   return rc;
 }
 

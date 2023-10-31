@@ -656,6 +656,7 @@ RC BufferPoolManager::create_file(const char *file_name)
   memset(&page, 0, BP_PAGE_SIZE);
 
   BPFileHeader *file_header = (BPFileHeader *)page.data;
+  page.page_type = PageType::PAGE;                       // 设置page类型
   file_header->allocated_pages = 1;
   file_header->page_count = 1;
 

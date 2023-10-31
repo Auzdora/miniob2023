@@ -27,6 +27,7 @@ enum AttrType {
   INTS,           ///< 整数类型(4字节)
   DATES,          ///< 日期类型(4字节)
   OBNULL,         ///< NULL值
+  TEXTS,          ///< text类型
   FLOATS,         ///< 浮点数类型(4字节)
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
   AGGRSTAR,       ///< 专门用来处理count(*)的情况
@@ -70,6 +71,7 @@ public:
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
   void set_null();
+  void set_text(const char *s, int len = 0);
   bool cast_type_to(AttrType type);
 
   std::string to_string() const;

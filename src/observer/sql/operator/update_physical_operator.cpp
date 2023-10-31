@@ -74,6 +74,8 @@ RC UpdatePhysicalOperator::next()
 
     for (int i=0; i < fields_.size(); i++) {
       Value taget_value;
+
+      // 子查询
       auto it = subselect_map_.find(fields_[i].field_name());
       if (it != subselect_map_.end()){
         int idx = it->second;
@@ -93,9 +95,11 @@ RC UpdatePhysicalOperator::next()
         values_[i] = taget_value;
         subselect->close();
       } else{
+        // 非子查询
         taget_value = values_[i];
       }
 
+      // 数据为null
       if (taget_value.is_null()){
         if (!fields_[i].meta()->nullable()) {
           return RC::INTERNAL;
@@ -104,6 +108,7 @@ RC UpdatePhysicalOperator::next()
         //  拷贝 新的null表到新record中
         memset(new_data+fields_[i].meta()->offset(),0,fields_[i].meta()->len());
       } else {
+        // 数据非null
         if (values_[i].attr_type() != fields_[i].attr_type())
           if(!values_[i].cast_type_to(fields_[i].attr_type()))
             return RC::INTERNAL;
@@ -113,8 +118,16 @@ RC UpdatePhysicalOperator::next()
             return RC::INTERNAL;
           }
         }
+        if (fields_[i].attr_type() == TEXTS)
+        {
+          new_record.set_write_text(values_[i].data(),values_[i].length());
+          new_record.set_has_text();
+          new_record.set_text_offset(old_record.get_text_offset());
+        }
+        else{
+          memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
+        }
         nullable_table.clear_bit(table_->table_meta().find_user_index_by_field(fields_[i].field_name()));
-        memcpy(new_data+fields_[i].meta()->offset(),values_[i].data(),fields_[i].meta()->len());
       }
     }
 

@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 using namespace common;
 
 static constexpr int PAGE_HEADER_SIZE = (sizeof(PageHeader));
+static constexpr int TEXT_PAGE_HEADER_SIZE = (sizeof(TextPageHeader));
 
 /**
  * @brief 8字节对齐
@@ -99,6 +100,7 @@ RC RecordPageHandler::init(DiskBufferPool &buffer_pool, PageNum page_num, bool r
   } else {
     frame_->write_latch();
   }
+
   disk_buffer_pool_ = &buffer_pool;
   readonly_         = readonly;
   page_header_      = (PageHeader *)(data);
@@ -154,6 +156,8 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_
 
   bitmap_ = frame_->data() + PAGE_HEADER_SIZE;
   memset(bitmap_, 0, page_bitmap_size(page_header_->record_capacity));
+
+  frame_->set_type(PageType::PAGE);             // 设置 page 类型
 
   if ((ret = buffer_pool.flush_page(*frame_)) != RC::SUCCESS) {
     LOG_ERROR("Failed to flush page header %d:%d.", buffer_pool.file_desc(), page_num);
@@ -403,7 +407,6 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
     free_pages_.insert(current_page_num);
     lock_.unlock();
   }
-
   // 找到空闲位置
   return record_page_handler.insert_record(data, rid);
 }
@@ -455,7 +458,7 @@ RC RecordFileHandler::get_record(RecordPageHandler &page_handler, const RID *rid
     LOG_ERROR("Invalid rid %p or rec %p, one of them is null.", rid, rec);
     return RC::INVALID_ARGUMENT;
   }
-
+  // todo get text
   RC ret = page_handler.init(*disk_buffer_pool_, rid->page_num, readonly);
   if (OB_FAIL(ret)) {
     LOG_ERROR("Failed to init record page handler.page number=%d", rid->page_num);
@@ -500,6 +503,17 @@ RC RecordFileScanner::open_scan(
   trx_              = trx;
   readonly_         = readonly;
 
+  // 根据table中的字段是否有text 来判断是否需要读取text
+  for (auto field : *(table->table_meta().field_metas()))
+  {
+    if (field.type() == AttrType::TEXTS)
+    {
+      text_page_handler_.init(buffer_pool);
+      text_offset_ = field.offset();            // 只考虑一个text字段
+      break;
+    }
+  }
+
   RC rc = bp_iterator_.init(buffer_pool);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to init bp iterator. rc=%d:%s", rc, strrc(rc));
@@ -537,7 +551,14 @@ RC RecordFileScanner::fetch_next_record()
   // 上个页面遍历完了，或者还没有开始遍历某个页面，那么就从一个新的页面开始遍历查找
   while (bp_iterator_.has_next()) {
     PageNum page_num = bp_iterator_.next();
+    // 跳过text page页面
+    if (text_page_handler_.is_valid())
+    {
+      if (text_page_handler_.check_page_is_text(page_num))
+        continue;
+    }
     record_page_handler_.cleanup();
+    text_page_handler_.cleanup();
     rc = record_page_handler_.init(*disk_buffer_pool_, page_num, readonly_);
     if (OB_FAIL(rc)) {
       LOG_WARN("failed to init record page handler. page_num=%d, rc=%s", page_num, strrc(rc));
@@ -557,6 +578,7 @@ RC RecordFileScanner::fetch_next_record()
   // 所有的页面都遍历完了，没有数据了
   next_record_.rid().slot_num = -1;
   record_page_handler_.cleanup();
+  text_page_handler_.cleanup();
   return RC::RECORD_EOF;
 }
 
@@ -568,6 +590,21 @@ RC RecordFileScanner::fetch_next_record_in_page()
   RC rc = RC::SUCCESS;
   while (record_page_iterator_.has_next()) {
     rc = record_page_iterator_.next(next_record_);
+
+    // 有text 字段，获取text信息到record中
+    if (text_page_handler_.is_valid())
+    {
+      rc = text_page_handler_.get_text(next_record_,text_offset_);
+       for (auto field : *(table_->table_meta().field_metas()))
+        {
+          if (field.type() == AttrType::TEXTS)
+          {
+            next_record_.set_text_offset(field.offset());            // 只考虑一个text字段
+            break;
+          }
+        }
+    }
+
     if (rc != RC::SUCCESS) {
       const auto page_num = record_page_handler_.get_page_num();
       LOG_TRACE("failed to get next record from page. page_num=%d, rc=%s", page_num, strrc(rc));
@@ -609,6 +646,7 @@ RC RecordFileScanner::close_scan()
   }
 
   record_page_handler_.cleanup();
+  text_page_handler_.close_handler();
 
   return RC::SUCCESS;
 }
@@ -624,4 +662,247 @@ RC RecordFileScanner::next(Record &record)
     rc = RC::SUCCESS;
   }
   return rc;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+RC TextPageHandler::init(DiskBufferPool &buffer_pool){
+  if (disk_buffer_pool_ != nullptr) {
+    return RC::RECORD_OPENNED;
+  }
+  disk_buffer_pool_ = &buffer_pool;
+  return RC::SUCCESS;
+}
+
+RC TextPageHandler::init_page(PageNum page_num, bool readonly){
+  RC ret = RC::SUCCESS;
+  Frame * frame = nullptr;
+  if ((ret = disk_buffer_pool_->get_this_page(page_num, &frame)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to get page handle from disk buffer pool. ret=%d:%s", ret, strrc(ret));
+    return ret;
+  }
+
+  char *data = frame->data();
+
+  if (readonly) {
+    frame->read_latch();
+  } else {
+    frame->write_latch();
+  }
+  readonly_         = readonly;
+  page_header_      = (TextPageHeader *)(data);
+  empty_frame_ = frame;
+  
+  LOG_TRACE("Successfully init page_num %d.", page_num);
+  return ret;
+}
+
+RC TextPageHandler::cleanup(){
+  if (disk_buffer_pool_ != nullptr) {
+    for (auto frame : frames_){
+      if (readonly_) {
+        frame->read_unlatch();
+      } else {
+        frame->write_unlatch();
+      }
+      disk_buffer_pool_->unpin_page(frame);
+    }
+    frames_.clear();
+    page_header_ = nullptr;
+    empty_frame_ = nullptr;
+  }
+  return RC::SUCCESS;
+}
+
+// TODO 逻辑应该有问题 暂时不处理
+RC TextPageHandler::recover_init(DiskBufferPool &buffer_pool, PageNum page_num)
+{
+  if (disk_buffer_pool_ != nullptr) {
+    LOG_WARN("Disk buffer pool has been opened for page_num %d.", page_num);
+    return RC::RECORD_OPENNED;
+  }
+
+  RC ret = RC::SUCCESS;
+  do {
+    Frame *frame;
+    if ((ret = buffer_pool.get_this_page(page_num, &frame)) != RC::SUCCESS) {
+      LOG_ERROR("Failed to get page handle from disk buffer pool. ret=%d:%s", ret, strrc(ret));
+      return ret;
+    }
+
+    char *data = frame->data();
+
+    frame->write_latch();
+    readonly_         = false;
+    page_header_      = (TextPageHeader *)(data);
+    buffer_pool.recover_page(page_num);
+  }while(page_header_->next_text_page_num);
+  
+  disk_buffer_pool_ = &buffer_pool;
+
+  LOG_TRACE("Successfully init page_num %d.", page_num);
+  return ret;
+}
+
+bool TextPageHandler::check_page_is_text(PageNum page_num)
+{
+  Frame * frame;
+  if ((disk_buffer_pool_->get_this_page(page_num, &frame)) != RC::SUCCESS) {
+    return false;
+  }
+  if (frame->page_type() == PageType::TEXTPAGE)
+    return true;
+  else 
+    return false;
+}
+
+RC TextPageHandler::init_empty_pages(int text_size)
+{
+  Frame *frame = nullptr;
+  RC ret = RC::SUCCESS;
+  int remain_text = text_size;
+  int frame_num = -1;
+  do{
+    if (( ret= disk_buffer_pool_->allocate_page(&frame)) != RC::SUCCESS) {
+      LOG_ERROR("Failed to allocate page while inserting record. ret:%d", ret);
+      return ret;
+    }
+    int page_num = frame->page_num();
+
+    if (frame_num  >= 0)
+    {
+      TextPageHeader *last_header = (TextPageHeader *)frames_[frame_num]->data();
+      last_header->next_text_page_num = page_num;
+    }
+
+    ret = init_page(page_num, false /*readonly*/);
+    if (ret != RC::SUCCESS) {
+      empty_frame_->unpin();
+      LOG_ERROR("Failed to init empty page page_num:text_size %d:%d.", page_num, text_size);
+      for (auto frame : frames_)
+      {
+        disk_buffer_pool_->dispose_page(frame->page_num());
+      }
+      return ret;
+    }
+    empty_frame_->unpin();  // allocate_page 和init_page中重复pin了
+
+    empty_frame_->set_type(PageType::TEXTPAGE);             // 设置 page 类型
+    page_header_->data_start_offset = align8(TEXT_PAGE_HEADER_SIZE);
+    page_header_->max_capcity = BP_PAGE_DATA_SIZE - page_header_->data_start_offset;
+    page_header_->next_text_page_num = 0;
+    if (remain_text > page_header_->max_capcity)
+    {
+      remain_text -= page_header_->max_capcity;
+      page_header_->use_lenght = page_header_->max_capcity;
+    } 
+    else
+    {
+      page_header_->use_lenght = remain_text;
+      remain_text = 0;
+    }
+    frames_.push_back(frame);
+    frame_num++;
+  } while(remain_text);
+
+  if ((ret = disk_buffer_pool_->flush_page(*empty_frame_)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to flush page header %d:%d.", disk_buffer_pool_->file_desc(), empty_frame_->page_num());
+    return ret;
+  }
+  return RC::SUCCESS;
+}
+
+RC TextPageHandler::insert_text(Record &data, RID *rid){
+  RC ret;
+  if (disk_buffer_pool_ == nullptr)
+    return RC::INTERNAL;
+  if ((ret = init_empty_pages(data.get_write_text().len_)) != RC::SUCCESS)
+    return ret;
+  int32_t has_written_len = 0;
+  for (auto frame: frames_)
+  {
+    TextPageHeader *header = (TextPageHeader *)frame->data();
+    char *record_data = frame->data() + header->data_start_offset;
+    memcpy(record_data, data.get_write_text().data_ + (has_written_len), header->use_lenght);
+    has_written_len += header->use_lenght;
+
+    frame->mark_dirty();
+
+    if (rid) {
+      rid->text_page_nums.push_back(frame->page_num());
+    }
+  }
+  // 给 record 中 text 字段的定长头数据赋值
+  textMeta *textmeta = (textMeta *)(data.data() + data.get_text_offset());
+  textmeta->start_page_num = frames_[0]->page_num();
+  textmeta->len_ = has_written_len;
+  cleanup();
+
+  return RC::SUCCESS;
+}
+
+RC TextPageHandler::delete_text(const RID *rid)
+{
+  RC ret = RC::SUCCESS;
+  if (disk_buffer_pool_ == nullptr)
+  {
+    return RC::INTERNAL;
+  }
+  for (auto page_num : rid->text_page_nums){
+    ret = init_page(page_num,false);
+    if (ret != RC::SUCCESS)
+      return ret;
+    empty_frame_->clear_page();
+    empty_frame_->set_page_num(page_num);
+    empty_frame_->mark_dirty();
+    empty_frame_->unpin();
+    ret = disk_buffer_pool_->dispose_page(page_num);
+    if (ret != RC::SUCCESS)
+      return ret;
+  }
+  cleanup();
+  return ret;
+}
+
+
+RC TextPageHandler::get_text(Record &rec,int text_offset){
+  textMeta *textfield = (textMeta *)(rec.data() + text_offset);
+  int32_t start = textfield->start_page_num;
+  int32_t len = textfield->len_;
+  int32_t next_num = start;
+  if (next_num == 0)
+    return RC::INTERNAL;         // 不应该为0
+  do{
+    RC rc = init_page(next_num,true);
+    if (rc != RC::SUCCESS)
+      return rc;
+    frames_.push_back(empty_frame_);
+    rec.rid().text_page_nums.push_back(next_num);
+    next_num = page_header_->next_text_page_num;
+  }while(next_num);
+  rec.set_read_text(get_text_data());
+  rec.set_text_len(text_len_);
+  rec.set_has_text();
+  return RC::SUCCESS;
+}
+
+char *TextPageHandler::get_text_data()
+{
+  int32_t offset = 0;
+  for (auto frame : frames_)
+  {
+    TextPageHeader* header = (TextPageHeader*)frame->data();
+    text_len_ += header->use_lenght;
+  }
+  char *copy_text = (char *)malloc(text_len_);
+
+  for (auto frame : frames_)
+  {
+    TextPageHeader* header = (TextPageHeader*)frame->data();
+    memcpy(copy_text+offset,frame->data() + header->data_start_offset,header->use_lenght);
+    offset += header->use_lenght;
+  }
+  return copy_text;
 }

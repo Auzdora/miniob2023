@@ -19,12 +19,19 @@ See the Mulan PSL v2 for more details. */
 
 using TrxID = int32_t;
 
+
+enum PageType{
+  PAGE,
+  TEXTPAGE,
+};
+
+
 static constexpr int BP_INVALID_PAGE_NUM = -1;
 
 static constexpr PageNum BP_HEADER_PAGE   = 0;
 
 static constexpr const int BP_PAGE_SIZE = (1 << 13);
-static constexpr const int BP_PAGE_DATA_SIZE = (BP_PAGE_SIZE - sizeof(PageNum) - sizeof(LSN));
+static constexpr const int BP_PAGE_DATA_SIZE = (BP_PAGE_SIZE - sizeof(PageNum) - sizeof(PageType) - sizeof(LSN));
 
 /**
  * @brief 表示一个页面，可能放在内存或磁盘上
@@ -33,6 +40,19 @@ static constexpr const int BP_PAGE_DATA_SIZE = (BP_PAGE_SIZE - sizeof(PageNum) -
 struct Page
 {
   PageNum page_num;
+  PageType page_type;
+  LSN     lsn;
+  char data[BP_PAGE_DATA_SIZE];
+};
+
+/**
+ * @brief 存放text 的页面
+ * @ingroup BufferPool
+*/
+struct TextPage
+{
+  PageNum page_num;
+  PageType page_type;
   LSN     lsn;
   char data[BP_PAGE_DATA_SIZE];
 };

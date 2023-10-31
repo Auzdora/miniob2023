@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <cmath>
 #include <sstream>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "null","floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "null", "text","floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type) {
   if (type >= UNDEFINED && type <= FLOATS) {
@@ -95,7 +95,11 @@ void Value::set_data(char *data, int length) {
     } break;
     case OBNULL:{
       // do nothing
-    } 
+    } break;
+    case TEXTS:
+    {
+      set_string(data, length);
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -136,6 +140,17 @@ void Value::set_string(const char *s, int len /*= 0*/) {
   length_ = str_value_.length();
 }
 
+void Value::set_text(const char *s, int len){
+  attr_type_ = TEXTS;
+  if (len > 0) {
+    len = strnlen(s, len);
+    str_value_.assign(s, len);
+  } else {
+    str_value_.assign(s);
+  }
+  length_ = str_value_.length();
+}
+
 void Value::set_null(){
   attr_type_ = OBNULL;
 }
@@ -160,6 +175,10 @@ void Value::set_value(const Value &value) {
     case OBNULL: {
       set_null();
     } break;
+    case TEXTS:
+    {
+      set_text(value.get_string().c_str());
+    } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -175,6 +194,10 @@ const char *Value::data() const {
   case OBNULL: {
     return nullptr;
   } break;
+  case TEXTS:
+  {
+    return str_value_.c_str();
+  }break;
   default: {
     return (const char *)&num_value_;
   } break;
@@ -201,6 +224,10 @@ std::string Value::to_string() const {
     } break;
     case OBNULL: {
       os << attr_type_to_string(OBNULL);
+    } break;
+    case TEXTS:
+    {
+      os << str_value_;
     } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
@@ -232,6 +259,13 @@ int Value::compare(const Value &other) const {
       }
       case OBNULL: {
         return 0;
+      }
+      case TEXTS:
+      {
+        return common::compare_string((void *)this->str_value_.c_str(),
+            this->str_value_.length(),
+            (void *)other.str_value_.c_str(),
+            other.str_value_.length());
       }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
@@ -549,6 +583,12 @@ bool Value::cast_type_to(AttrType type){
   case CHARS:
   {
     this->set_string(this->get_string().c_str());
+    return true;
+  }
+  case TEXTS:
+  {
+    this->set_string(this->get_string().c_str());
+    this->set_type(TEXTS);
     return true;
   }
   default:
