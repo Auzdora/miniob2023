@@ -54,6 +54,18 @@ struct AggrAttrSqlNode
 };
 
 
+/**
+ * @brief 描述一个group by
+ * @ingroup SQLParser
+ * @details group by的attr需要出现在
+ */
+struct GroupBySqlNode
+{
+  std::string relation_name;      
+  std::string attribute_name;    
+  std::string alias;
+};
+
 enum FunctionType{
   LENGTH_T,
   ROUND_T,
@@ -205,6 +217,9 @@ struct SelectSqlNode
   std::vector<OrderBySqlNode>     orderbys;      ///< order by语法支持
   std::vector<ExprSqlNode>        expressions;   ///< 支持exression表达式
   std::unordered_map<std::string, std::string> rel_alias; ///< 原名到别名的映射
+  std::vector<ExprSqlNode>        groupbys;
+  std::vector<ConditionSqlNode>   having_conditions;
+  bool use_group_by;
 };
 
 /**

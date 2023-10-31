@@ -195,6 +195,75 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
+  // push group by attr into query fields, for projection output
+  if (select_sql.use_group_by) {
+    for (const auto &expr : select_sql.groupbys) {
+    const RelAttrSqlNode &relation_attr = select_sql.attributes[0];
+
+    if (common::is_blank(relation_attr.relation_name.c_str()) &&
+        0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
+      for (Table *table : tables) {
+        wildcard_fields(table, query_fields);
+        for (const auto &field : query_fields) {
+          star_field_names.push_back(field.field_name());
+        }
+      }
+
+    } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
+      const char *table_name = relation_attr.relation_name.c_str();
+      const char *field_name = relation_attr.attribute_name.c_str();
+
+      if (0 == strcmp(table_name, "*")) {
+        if (0 != strcmp(field_name, "*")) {
+          LOG_WARN("invalid field name while table is *. attr=%s", field_name);
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+        for (Table *table : tables) {
+          wildcard_fields(table, query_fields);
+        }
+      } else if (0 != strcmp(table_name, "*") && 0 == strcmp(field_name, "*")){
+        Table *table = table_map.at(table_name);
+        wildcard_fields(table, query_fields);
+      } else {
+        auto iter = table_map.find(table_name);
+        if (iter == table_map.end()) {
+          LOG_WARN("no such table in from list: %s", table_name);
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+
+        Table *table = iter->second;
+        if (0 == strcmp(field_name, "*") && select_sql.aggregations.size() > 0) {
+          query_fields.push_back(Field(table, new FieldMeta("*",AttrType::AGGRSTAR, 0, 1,true, true))); // TODO 逻辑要理一下
+        } else if (0 == strcmp(field_name, "*")) {
+          wildcard_fields(table, query_fields);
+        } else {
+          const FieldMeta *field_meta = table->table_meta().field(field_name);
+          if (nullptr == field_meta) {
+            LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
+            return RC::SCHEMA_FIELD_MISSING;
+          }
+
+          query_fields.push_back(Field(table, field_meta));
+        }
+      }
+    } else {
+      if (tables.size() != 1) {
+        LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
+        return RC::SCHEMA_FIELD_MISSING;
+      }
+
+      Table *table = tables[0];
+      const FieldMeta *field_meta = table->table_meta().field(relation_attr.attribute_name.c_str());
+      if (nullptr == field_meta) {
+        LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name.c_str());
+        return RC::SCHEMA_FIELD_MISSING;
+      }
+
+      query_fields.push_back(Field(table, field_meta));
+    }
+    }
+  }
+
   LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), query_fields.size());
 
   Table *default_table = nullptr;
@@ -207,7 +276,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   std::vector<std::string> aggr_funcs;
 
   // TODO if add group by, the logic should be changed
-  if (select_sql.aggregations.size() > 0 && select_sql.aggregations.size() != select_sql.attributes.size()) {
+  if (select_sql.aggregations.size() > 0 && select_sql.aggregations.size() != select_sql.attributes.size() && !select_sql.use_group_by) {
     return RC::INTERNAL;
   }
   for (int i = static_cast<int>(select_sql.aggregations.size()) - 1; i >= 0; i--) {
@@ -307,8 +376,47 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       query_expressions.push_back(expr);
       continue;
     }
+    if (expr->type() == ExprType::AGGREGATION) {
+      // 处理group by中having的aggr的index，保证在后续能够利用索引找到具体的aggregation结果
+      for (auto &condition : select_sql.having_conditions) {
+        if (condition.left_con_type == ConditionType::CON_AGGR_T) {
+          if (0 == strcmp(expr->name().c_str(), condition.left_expr_node.expression->name().c_str())) {
+            condition.left_expr_node.expression->set_index(expr->index());
+          }
+        }
+        if (condition.right_con_type == ConditionType::CON_AGGR_T) {
+          if (0 == strcmp(expr->name().c_str(), condition.right_expr_node.expression->name().c_str())) {
+            condition.right_expr_node.expression->set_index(expr->index());
+          }
+        }
+      }
+    }
     query_expressions.push_back(expr);
     query_expressions_names.push_back(expr->name());
+  }
+
+  // init group by expressions
+  std::vector<Expression *> group_by_exprs;
+  for (int i=0; i < select_sql.groupbys.size(); i++) {
+    Expression *expr = select_sql.groupbys[i].expression;
+    if (expr == nullptr) {
+      continue;
+    }
+    expr->init(db, default_table, &table_map);
+    group_by_exprs.push_back(expr);
+  }
+
+  // create filter statement in 'having' statement
+  FilterStmt *having_filter_stmt;
+  rc = FilterStmt::create(db,
+      default_table,
+      &table_map,
+      select_sql.having_conditions.data(),
+      static_cast<int>(select_sql.having_conditions.size()),
+      having_filter_stmt, select_sql.rel_alias);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("cannot construct having filter stmt");
+    return rc;
   }
 
   // everything alright
@@ -324,6 +432,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->query_expressions_.swap(query_expressions);
   select_stmt->query_expressions_names_.swap(query_expressions_names);
   select_stmt->start_field_names_.swap(star_field_names);
+  select_stmt->use_group_by_ = select_sql.use_group_by;
+  select_stmt->group_by_exprs_.swap(group_by_exprs);
+  select_stmt->having_filter_stmt_ = having_filter_stmt;
   stmt = select_stmt;
   return RC::SUCCESS;
 }

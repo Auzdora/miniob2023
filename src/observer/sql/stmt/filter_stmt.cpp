@@ -216,6 +216,11 @@ RC FilterStmt::Init_filter_unit(
     filter_obj.expr->init(db, default_table, tables);
     filter_unit->set_left(filter_obj);
   } break;
+  case CON_AGGR_T: {
+    FilterObj filter_obj;
+    filter_obj.init_expression(condition.left_expr_node.expression);
+    filter_unit->set_left(filter_obj);
+  } break;
   default: {
     return RC::INTERNAL;
     break;
@@ -271,6 +276,11 @@ RC FilterStmt::Init_filter_unit(
     FilterObj filter_obj;
     filter_obj.init_expression(condition.right_expr_node.expression);
     filter_obj.expr->init(db, default_table, tables);
+    filter_unit->set_right(filter_obj);
+  } break;
+  case CON_AGGR_T: {
+    FilterObj filter_obj;
+    filter_obj.init_expression(condition.right_expr_node.expression);
     filter_unit->set_right(filter_obj);
   } break;
   default: {

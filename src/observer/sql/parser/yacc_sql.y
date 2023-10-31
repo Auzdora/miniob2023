@@ -43,6 +43,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 
 int aggregation_cnt = 0;
 int offset_aggr_cnt = 0;
+int aggr_start_offset = 0; // for group by and aggr 
 
 %}
 
@@ -109,7 +110,9 @@ int offset_aggr_cnt = 0;
         NOT
         UNIQUE
         ORDER
+        GROUP
         BY
+        HAVING
         ASC
         MINUS
         LENGTH
@@ -128,6 +131,7 @@ int offset_aggr_cnt = 0;
 %union {
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+  std::vector<ConditionSqlNode> *   having;
   Value *                           value;
   Value *                           expr_value;
   enum CompOp                       comp;
@@ -147,6 +151,7 @@ int offset_aggr_cnt = 0;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<OrderBySqlNode> *     order_by_list;
+  std::vector<ExprSqlNode> *        group_by_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<AggrAttrSqlNode> *    aggr_attr_list;
   std::vector<RelSqlNode> *         relation_list;
@@ -172,6 +177,7 @@ int offset_aggr_cnt = 0;
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
 %type <number>              type
 %type <condition>           condition
+%type <having>              having
 %type <value>               value
 %type <alias>               alias
 %type <aggr_func>           aggr_func
@@ -182,6 +188,7 @@ int offset_aggr_cnt = 0;
 %type <order_attr>          order_attr
 %type <order_by_list>       order_by_list
 %type <order_by_list>       order_by
+%type <group_by_list>       group_by
 %type <rel_attr>            rel_attr
 %type <inner_join>          inner_join
 %type <aggr_attr>           aggr_attr
@@ -718,7 +725,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       free($4);
     } */
-    SELECT expression_list FROM ID alias rel_list innerJoin_list where order_by
+    SELECT expression_list FROM ID alias rel_list innerJoin_list where order_by group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -732,7 +739,11 @@ select_stmt:        /*  select 语句的语法解析树*/
           }
         }
         for (int i=0; i < $$->selection.aggregations.size(); i++) {
-          $$->selection.attributes[i].relation_name = $4;
+          if ($$->selection.aggregations[i].relation_name.empty()) {
+            $$->selection.attributes[i].relation_name = $4;
+          } else {
+            $$->selection.attributes[i].relation_name = $$->selection.aggregations[i].relation_name;
+          }
         }
         delete $2;
       }
@@ -769,7 +780,21 @@ select_stmt:        /*  select 语句的语法解析树*/
         std::reverse($$->selection.orderbys.begin(), $$->selection.orderbys.end());
         delete $9;
       }
+      if ($10 != nullptr) {
+        $$->selection.use_group_by = true;
+        $$->selection.groupbys.swap(*$10);
+        std::reverse($$->selection.groupbys.begin(), $$->selection.groupbys.end());
+        delete $10;
+      } else {
+        $$->selection.use_group_by = false;
+      }
+      // having conditon
+      if ($11 != nullptr) {
+        $$->selection.having_conditions.swap(*$11);
+        delete $11;
+      }
       aggregation_cnt = 0;
+      aggr_start_offset = 0;
     }
     | SELECT expression_list
     {
@@ -808,6 +833,26 @@ select_stmt:        /*  select 语句的语法解析树*/
       return -1;
     }
     ;
+group_by:
+    {
+      $$ = nullptr;
+    }
+    | GROUP BY expression_list
+    {
+      $$ = $3;
+    }
+    ;
+
+having:
+    {
+      $$ = nullptr;
+    }
+    | HAVING condition_list
+    {
+      $$ = $2;
+    }
+    ;
+
 order_by:
     {
       $$ = nullptr;
@@ -1008,6 +1053,7 @@ expression:
         $$->expression->set_name(token_name(sql_string, &@$));
       }
       $$->attributes.emplace_back(*$1);
+      aggr_start_offset++;
       delete $1;
     }
     | aggr_attr {
@@ -1015,7 +1061,7 @@ expression:
       $$->expression = new AggregationExpr($1->aggregation_name,$1->attribute_name);
       $$->expression->set_name(token_name(sql_string, &@$));
       $$->aggregations.emplace_back(*$1);
-      $$->expression->set_index(aggregation_cnt);
+      $$->expression->set_index(aggregation_cnt+aggr_start_offset);
       aggregation_cnt++;
       RelAttrSqlNode *rel_node = new RelAttrSqlNode;
       rel_node->attribute_name = $1->attribute_name;

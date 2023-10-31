@@ -18,6 +18,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/aggr_physical_operator.h"
 #include "sql/operator/create_table_select_logical_operator.h"
 #include "sql/operator/create_table_select_physical_operator.h"
+#include "sql/operator/group_logical_operator.h"
+#include "sql/operator/group_physical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/operator/table_get_logical_operator.h"
@@ -106,6 +108,11 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator,
   {
     return create_plan(static_cast<AggregationLogicalOperator &>(logical_operator), oper);
   } break;
+
+  case LogicalOperatorType::GROUPBY:
+  {
+    return create_plan(static_cast<GroupByLogicalOperator &>(logical_operator), oper);
+  }
 
   case LogicalOperatorType::SORT: 
   {
@@ -468,6 +475,26 @@ RC PhysicalPlanGenerator::create_plan(CreateTableSelectLogicalOperator &create_t
 
   oper = unique_ptr<PhysicalOperator>(new CreateTableSelectPhysicalOperator(create_table_select_oper.get_db(), create_table_select_oper.table_name(), create_table_select_oper.expr_names(), create_table_select_oper.star_field_names()));
   oper->add_child(std::move(child_phy_oper));
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &group_by_oper, std::unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &children_opers = group_by_oper.children();
+  ASSERT(children_opers.size() == 1, "group by sub oper number should be 1");
+
+  LogicalOperator &child_oper = *children_opers.front();
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+  RC rc = create(child_oper, child_phy_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create child operator of sort operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  GroupByPhysicalOperator *group_oper_phy = new GroupByPhysicalOperator(std::move(group_by_oper.aggr_funcs()), std::move(group_by_oper.expressions()),group_by_oper.group_by_exprs());
+  group_oper_phy->add_child(std::move(child_phy_oper));
+  oper = unique_ptr<PhysicalOperator>(group_oper_phy);
   return rc;
 }
 

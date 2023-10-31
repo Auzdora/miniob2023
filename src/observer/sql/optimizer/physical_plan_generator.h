@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/aggr_logical_operator.h"
 #include "sql/operator/create_table_select_logical_operator.h"
 #include "sql/operator/create_table_select_physical_operator.h"
+#include "sql/operator/group_logical_operator.h"
 #include "sql/operator/sort_logical_operator.h"
 #include "sql/operator/physical_operator.h"
 #include "sql/operator/logical_operator.h"
@@ -61,4 +62,5 @@ private:
   RC create_plan(AggregationLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(SortLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(CreateTableSelectLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
+  RC create_plan(GroupByLogicalOperator &logical_operator, std::unique_ptr<PhysicalOperator> &oper);
 };

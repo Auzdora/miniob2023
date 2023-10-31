@@ -106,26 +106,28 @@ extern int yydebug;
     NOT = 307,                     /* NOT  */
     UNIQUE = 308,                  /* UNIQUE  */
     ORDER = 309,                   /* ORDER  */
-    BY = 310,                      /* BY  */
-    ASC = 311,                     /* ASC  */
-    MINUS = 312,                   /* MINUS  */
-    LENGTH = 313,                  /* LENGTH  */
-    ROUND = 314,                   /* ROUND  */
-    DATE_FORMAT = 315,             /* DATE_FORMAT  */
-    AS = 316,                      /* AS  */
-    IN = 317,                      /* IN  */
-    EXISTS = 318,                  /* EXISTS  */
-    COUNT = 319,                   /* COUNT  */
-    MIN = 320,                     /* MIN  */
-    MAX = 321,                     /* MAX  */
-    SUM = 322,                     /* SUM  */
-    AVG = 323,                     /* AVG  */
-    NUMBER = 324,                  /* NUMBER  */
-    DATE = 325,                    /* DATE  */
-    FLOAT = 326,                   /* FLOAT  */
-    ID = 327,                      /* ID  */
-    SSS = 328,                     /* SSS  */
-    UMINUS = 329                   /* UMINUS  */
+    GROUP = 310,                   /* GROUP  */
+    BY = 311,                      /* BY  */
+    HAVING = 312,                  /* HAVING  */
+    ASC = 313,                     /* ASC  */
+    MINUS = 314,                   /* MINUS  */
+    LENGTH = 315,                  /* LENGTH  */
+    ROUND = 316,                   /* ROUND  */
+    DATE_FORMAT = 317,             /* DATE_FORMAT  */
+    AS = 318,                      /* AS  */
+    IN = 319,                      /* IN  */
+    EXISTS = 320,                  /* EXISTS  */
+    COUNT = 321,                   /* COUNT  */
+    MIN = 322,                     /* MIN  */
+    MAX = 323,                     /* MAX  */
+    SUM = 324,                     /* SUM  */
+    AVG = 325,                     /* AVG  */
+    NUMBER = 326,                  /* NUMBER  */
+    DATE = 327,                    /* DATE  */
+    FLOAT = 328,                   /* FLOAT  */
+    ID = 329,                      /* ID  */
+    SSS = 330,                     /* SSS  */
+    UMINUS = 331                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -134,10 +136,11 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 128 "yacc_sql.y"
+#line 131 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+  std::vector<ConditionSqlNode> *   having;
   Value *                           value;
   Value *                           expr_value;
   enum CompOp                       comp;
@@ -157,6 +160,7 @@ union YYSTYPE
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<OrderBySqlNode> *     order_by_list;
+  std::vector<ExprSqlNode> *        group_by_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<AggrAttrSqlNode> *    aggr_attr_list;
   std::vector<RelSqlNode> *         relation_list;
@@ -171,7 +175,7 @@ union YYSTYPE
   float                             floats;
   bool                              nullable;
 
-#line 175 "yacc_sql.hpp"
+#line 179 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

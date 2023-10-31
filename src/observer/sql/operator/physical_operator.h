@@ -52,6 +52,7 @@ enum class PhysicalOperatorType
   AGGREGATION,
   SORT,
   CREATE_TABLE_SELECT,
+  GROUPBY,
 };
 
 

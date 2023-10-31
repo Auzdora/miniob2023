@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "sql/operator/aggr_logical_operator.h"
 #include "sql/operator/create_table_select_logical_operator.h"
+#include "sql/operator/group_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
@@ -111,6 +112,7 @@ RC LogicalPlanGenerator::create_plan(
   const std::vector<Expression *> &all_expressions = select_stmt->query_expressions();
   int inner_join_idx = 0;
   const std::vector<std::string> &all_aggr_funcs = select_stmt->aggr_funcs();
+  const std::vector<Expression *> &group_by_exprs = select_stmt->group_by_exprs();
   // only support aggr on one table for now
   // if (!all_aggr_funcs.empty() && tables.size() > 1) {
   //   LOG_WARN("do not support aggregation on multiple tables");
@@ -118,7 +120,7 @@ RC LogicalPlanGenerator::create_plan(
   // }
 
   bool contain_expression = false;
-  if (select_stmt->query_fields().size() > select_stmt->query_expressions().size()) {
+  if (select_stmt->query_fields().size() > select_stmt->query_expressions().size() && !select_stmt->use_group_by()) {
     contain_expression = true;
   } else {
     // 意味着attribute的数量和expression的数量相同，一种可能是单纯的查询，另一种则是每个expression与常量运算
@@ -167,6 +169,14 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
+  // create having predicate
+  unique_ptr<LogicalOperator> having_predicate_oper;
+  rc = create_plan(select_stmt->having_filter_stmt(), having_predicate_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+
   unique_ptr<LogicalOperator> project_oper;
   if (contain_expression && all_aggr_funcs.empty()) {
     project_oper = std::make_unique<ProjectLogicalOperator>(all_fields, all_expressions);
@@ -183,6 +193,19 @@ RC LogicalPlanGenerator::create_plan(
     if (table_oper) {
       project_oper->add_child(std::move(table_oper));
     }
+  }
+
+  // create group by operator
+  if (select_stmt->use_group_by()) {
+    unique_ptr<LogicalOperator> group_by_oper(new GroupByLogicalOperator(all_aggr_funcs, all_expressions, group_by_exprs));
+    group_by_oper->add_child(std::move(project_oper));
+    if (having_predicate_oper) {
+      having_predicate_oper->add_child(std::move(group_by_oper));
+      logical_operator.swap(having_predicate_oper);
+      return RC::SUCCESS;
+    }
+    logical_operator.swap(group_by_oper);
+    return RC::SUCCESS;
   }
 
   if (!all_aggr_funcs.empty()) {

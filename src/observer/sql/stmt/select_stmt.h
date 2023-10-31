@@ -66,6 +66,13 @@ public:
   {
     return filter_stmt_;
   }
+  FilterStmt *having_filter_stmt() const
+  {
+    return having_filter_stmt_;
+  }
+  const bool use_group_by() const {
+    return use_group_by_;
+  }
   std::vector<FilterStmt *> filter_stmts() const
   {
     return filter_stmts_;
@@ -77,6 +84,10 @@ public:
   const std::vector<Expression *> &query_expressions() const
   {
     return query_expressions_;
+  }
+  const std::vector<Expression *> &group_by_exprs() const
+  {
+    return group_by_exprs_;
   }
   const std::vector<std::string> &query_expressions_names() const
   {
@@ -95,6 +106,9 @@ private:
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
+  FilterStmt *having_filter_stmt_ = nullptr;
+  bool use_group_by_ = false;
+  std::vector<Expression *> group_by_exprs_;
   std::vector<FilterStmt *> filter_stmts_;   // 多个filter for join 或者其他筛选
   std::vector<Expression *> query_expressions_;
   std::vector<std::string> query_expressions_names_;
