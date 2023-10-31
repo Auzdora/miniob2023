@@ -71,6 +71,7 @@ public:
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
   void set_null();
+  void set_text(const char *s, int len = 0);
   bool cast_type_to(AttrType type);
 
   std::string to_string() const;

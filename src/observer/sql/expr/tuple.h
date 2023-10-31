@@ -222,8 +222,16 @@ public:
       LOG_WARN("this should never happen!");
       return RC::INTERNAL;
     }
+
     cell.set_type(field_meta->type());
-    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+   // 字段为text 字段
+    if (field_meta->type() == TEXTS)
+    {
+      cell.set_data(this->record_->get_texts_data(),this->record_->get_text_len());
+    }else{
+      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    }
+
     return RC::SUCCESS;
   }
 

@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 
 class ConditionFilter;
 class RecordPageHandler;
+class TextPageHandler;
 class Trx;
 class Table;
 
@@ -237,6 +238,157 @@ private:
   friend class RecordPageIterator;
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief text 使用的页面，每个text 由多个text page的一个链表组成
+ * @ingroup RecordManager
+*/
+struct TextPageHeader
+{
+  int32_t use_lenght;           ///< record使用的长度
+  int32_t max_capcity;          ///< 最大容量
+  int32_t next_text_page_num;   ///< 下一个text页面的页号，为0表示没有下一个页面
+  int32_t data_start_offset;    ///< 数据开始地址
+};
+
+
+/**
+ * @brief 负责处理text page页面的初始化，更新
+ * @ingroup RecordManager
+ */
+
+class TextPageHandler
+{
+public:
+  TextPageHandler() = default;
+  ~TextPageHandler() {
+    cleanup();
+    if (disk_buffer_pool_ != nullptr){
+      disk_buffer_pool_ = nullptr;
+    }
+  };
+
+  RC init(DiskBufferPool &buffer_pool);
+
+  /**
+   * @brief 初始化
+   *
+   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
+   * @param page_num    当前处理哪个页面
+   * @param readonly    是否只读。在访问页面时，需要对页面加锁
+   */
+  RC init_page(PageNum page_num, bool readonly);
+
+  /**
+   * @brief 数据库恢复时，与普通的运行场景有所不同，不做任何并发操作，也不需要加锁
+   * 
+   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
+   * @param page_num    操作的页面编号
+   */
+  RC recover_init(DiskBufferPool &buffer_pool, PageNum page_num);
+
+  /**
+   * @brief 对一个新的页面做初始化，初始化关于该页面记录信息的页头PageHeader
+   *
+   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
+   * @param page_num    当前处理哪个页面
+   * @param record_size 每个记录的大小
+   */
+  RC init_empty_pages(int text_size);
+
+  /**
+   * @brief 操作结束后做的清理工作，比如释放页面、解锁
+   */
+  RC cleanup();
+
+  /**
+   * @brief 插入一条记录
+   *
+   * @param data 要插入的记录
+   * @param rid  如果插入成功，通过这个参数返回插入的位置
+   */
+  RC insert_text(Record &data, RID *rid);
+
+  /**
+   * @brief 数据库恢复时，在指定位置插入数据
+   * 
+   * @param data 要插入的数据行
+   * @param rid  插入的位置
+   */
+  RC recover_insert_text(const char *data, const RID &rid);
+
+  /**
+   * @brief 删除指定的记录
+   *
+   * @param rid 要删除的记录标识
+   */
+  RC delete_text(const RID *rid);
+
+  /**
+   * @brief 获取指定位置的记录数据
+   *
+   * @param rid 指定的位置
+   * @param rec 返回指定的数据。这里不会将数据复制出来，而是使用指针，所以调用者必须保证数据使用期间受到保护
+   */
+  RC get_text(Record &rec,int text_offset);
+
+  /**
+   * @brief 返回该text的页的页号
+   */
+  PageNum get_text_page_num() const;
+
+  /**
+   * @brief 当前页面是否已经没有空闲位置插入新的记录
+   */
+  bool is_valid() const {
+    return (disk_buffer_pool_ != nullptr);
+  };
+
+  bool check_page_is_text(PageNum pagenum);
+
+  void close_handler() {
+    cleanup();
+    if (disk_buffer_pool_ != nullptr)
+      disk_buffer_pool_ == nullptr;
+  }
+  
+  /**
+   * @brief 获取指定槽位的记录数据
+   * 
+   * @param 指定的记录槽位
+   */
+  char *get_text_data();
+
+protected:
+  /**
+   * @details 
+   * 前面在计算record_capacity时并没有考虑对齐，但第一个record需要8字节对齐
+   * 因此按此前计算的record_capacity，最后一个记录的部分数据可能会被挤出页面
+   * 所以需要对record_capacity进行修正，保证记录不会溢出
+   */
+  void fix_record_capacity() {
+    // int32_t last_record_offset = page_header_->first_record_offset + 
+    //                              page_header_->record_capacity * page_header_->record_size;
+    // while(last_record_offset > BP_PAGE_DATA_SIZE) {
+    //   page_header_->record_capacity -= 1;
+    //   last_record_offset -= page_header_->record_size;
+    // }
+  }
+
+protected:
+  DiskBufferPool *disk_buffer_pool_ = nullptr;  ///< 当前操作的buffer pool(文件)
+  Frame *                empty_frame_ = nullptr; ///< 空frame
+  std::vector<Frame *>   frames_;               ///< text 占用的所有frames
+  bool            readonly_         = false;    ///< 当前的操作是否都是只读的
+  TextPageHeader *page_header_      = nullptr;  ///< 当前页面上页面头
+  int32_t text_len_ = 0;
+
+private:
+  friend class RecordPageIterator;
+};
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * @brief 管理整个文件中记录的增删改查
  * @ingroup RecordManager
@@ -381,157 +533,10 @@ private:
   BufferPoolIterator bp_iterator_;                 ///< 遍历buffer pool的所有页面
   ConditionFilter   *condition_filter_ = nullptr;  ///< 过滤record
   RecordPageHandler  record_page_handler_;         ///< 处理文件某页面的记录
+  TextPageHandler    text_page_handler_;           ///< text 处理
+  int                text_offset_;                  ///< text 在record 中的偏移量
   RecordPageIterator record_page_iterator_;        ///< 遍历某个页面上的所有record
   Record             next_record_;                 ///< 获取的记录放在这里缓存起来
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * @brief text 使用的页面，每个text 由多个text page的一个链表组成
- * @ingroup RecordManager
-*/
-struct TextPageHeader
-{
-  int32_t use_lenght;           ///< record使用的长度
-  int32_t max_capcity;          ///< 最大容量
-  int32_t next_text_page_num;   ///< 下一个text页面的页号，为0表示没有下一个页面
-  int32_t data_start_offset;    ///< 数据开始地址
-};
-
-
-/**
- * @brief 负责处理text page页面的初始化，更新
- * @ingroup RecordManager
- */
-
-class TextPageHandler
-{
-public:
-  TextPageHandler() = default;
-  ~TextPageHandler() {
-    cleanup();
-    if (disk_buffer_pool_ != nullptr){
-      disk_buffer_pool_ = nullptr;
-    }
-  };
-
-  RC init(DiskBufferPool &buffer_pool);
-
-  /**
-   * @brief 初始化
-   *
-   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
-   * @param page_num    当前处理哪个页面
-   * @param readonly    是否只读。在访问页面时，需要对页面加锁
-   */
-  RC init_page(PageNum page_num, bool readonly);
-
-  /**
-   * @brief 数据库恢复时，与普通的运行场景有所不同，不做任何并发操作，也不需要加锁
-   * 
-   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
-   * @param page_num    操作的页面编号
-   */
-  RC recover_init(DiskBufferPool &buffer_pool, PageNum page_num);
-
-  /**
-   * @brief 对一个新的页面做初始化，初始化关于该页面记录信息的页头PageHeader
-   *
-   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
-   * @param page_num    当前处理哪个页面
-   * @param record_size 每个记录的大小
-   */
-  RC init_empty_pages(int text_size);
-
-  /**
-   * @brief 操作结束后做的清理工作，比如释放页面、解锁
-   */
-  RC cleanup();
-
-  /**
-   * @brief 插入一条记录
-   *
-   * @param data 要插入的记录
-   * @param rid  如果插入成功，通过这个参数返回插入的位置
-   */
-  RC insert_text(Record &data, RID *rid);
-
-  /**
-   * @brief 数据库恢复时，在指定位置插入数据
-   * 
-   * @param data 要插入的数据行
-   * @param rid  插入的位置
-   */
-  RC recover_insert_text(const char *data, const RID &rid);
-
-  /**
-   * @brief 删除指定的记录
-   *
-   * @param rid 要删除的记录标识
-   */
-  RC delete_text(const RID *rid);
-
-  /**
-   * @brief 获取指定位置的记录数据
-   *
-   * @param rid 指定的位置
-   * @param rec 返回指定的数据。这里不会将数据复制出来，而是使用指针，所以调用者必须保证数据使用期间受到保护
-   */
-  RC get_text(const RID *rid, Record *rec);
-
-  /**
-   * @brief 返回该text的页的页号
-   */
-  PageNum get_text_page_num() const;
-
-  /**
-   * @brief 当前页面是否已经没有空闲位置插入新的记录
-   */
-  bool is_full() const;
-
-protected:
-  /**
-   * @details 
-   * 前面在计算record_capacity时并没有考虑对齐，但第一个record需要8字节对齐
-   * 因此按此前计算的record_capacity，最后一个记录的部分数据可能会被挤出页面
-   * 所以需要对record_capacity进行修正，保证记录不会溢出
-   */
-  void fix_record_capacity() {
-    // int32_t last_record_offset = page_header_->first_record_offset + 
-    //                              page_header_->record_capacity * page_header_->record_size;
-    // while(last_record_offset > BP_PAGE_DATA_SIZE) {
-    //   page_header_->record_capacity -= 1;
-    //   last_record_offset -= page_header_->record_size;
-    // }
-  }
-
-  /**
-   * @brief 获取指定槽位的记录数据
-   * 
-   * @param 指定的记录槽位
-   */
-  TextData &get_text_data()
-  {
-    TextData *textData_ = new TextData();
-    textData_->open();
-    for (auto frame : frames_)
-    {
-      char * datapos = frame->data() + page_header_->data_start_offset;
-      if (!textData_->append_data(datapos,page_header_->use_lenght))
-        break;
-    }
-    textData_->close();
-    return *textData_;
-  }
-
-protected:
-  DiskBufferPool *disk_buffer_pool_ = nullptr;  ///< 当前操作的buffer pool(文件)
-  Frame *                empty_frame_ = nullptr; ///< 空frame
-  std::vector<Frame *>   frames_;               ///< text 占用的所有frames
-  bool            readonly_         = false;    ///< 当前的操作是否都是只读的
-  TextPageHeader *page_header_      = nullptr;  ///< 当前页面上页面头
-
-private:
-  friend class RecordPageIterator;
-};

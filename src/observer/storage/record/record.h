@@ -86,9 +86,80 @@ struct RID
     return &rid;
   }
 };
+struct textData
+{
+  const char * data_;
+  int32_t len_;
+};
 
-struct textData;
-class TextData;
+struct textMeta
+{
+  int start_page_num;
+  int32_t len_;
+  char *data(){
+    return (char *)&start_page_num;
+  }
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+class TextData{
+public:
+  TextData() {};
+  ~TextData() {
+    for (auto textdata : datas_)
+    {
+      textdata.data_ = nullptr;
+    }
+    datas_.clear();
+  };
+
+  void init() {
+    idx_ = 0;
+  };
+
+  void open(){
+    write_ = true;
+  };
+
+  void close(){
+    write_ = false;
+  };
+
+  int32_t next(const char *data){
+    if (has_next())
+    {
+      data = datas_[idx_].data_;
+      return datas_[idx_++].len_;
+    }else{
+      data = nullptr;
+      return 0;
+    }
+  };
+
+  std::vector<textData> & get_datas() {
+    return datas_;
+  }
+
+  bool has_next(){
+    return (idx_ == datas_.size());
+  };
+
+  bool append_data(const char *data_para,int32_t len){
+    if (write_)
+    {
+      datas_.push_back({data_para,len});
+      return true;
+    }
+    return false;
+  };
+
+private:
+  std::vector<textData> datas_; //不管理内存
+  int idx_ = 0;
+  bool write_ = false;          //控制是否能写数据
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief 表示一个记录
@@ -105,6 +176,10 @@ public:
     if (owner_ && data_ != nullptr) {
       free(data_);
       data_ = nullptr;
+      if (!text_data_.empty())
+      {
+        text_data_.clear();
+      }
     }
   }
 
@@ -114,13 +189,18 @@ public:
     data_  = other.data_;
     len_   = other.len_;
     owner_ = other.owner_;
+    text_len_ = other.text_len_;
+    has_text_ = other.has_text_;
+    text_offset_ = other.text_offset_;
 
     if (other.owner_) {
       char *tmp = (char *)malloc(other.len_);
       ASSERT(nullptr != tmp, "failed to allocate memory. size=%d", other.len_);
       memcpy(tmp, other.data_, other.len_);
       data_ = tmp;
+      text_data_ = std::move(other.text_data_);
     }
+    text_data_ = std::move(other.text_data_);
   }
 
   Record &operator=(const Record &other)
@@ -154,16 +234,31 @@ public:
   int         len() const { return this->len_; }
 
   void set_has_text() { has_text_ = true;}
+  void set_text_offset(int offset) { text_offset_ = offset;}
+  int get_text_offset() { return text_offset_;}
   bool has_text() { return has_text_;}
   void set_write_text(const char *data, int32_t len) {
     write_text_data_.data_ = data;
     write_text_data_.len_ = len;
   }
 
-  struct textData & get_write_text() { return write_text_data_;}
+  void set_read_text(char *text){
+    text_data_ = std::move(text);
+  }
+  void set_text_len(int32_t text_len)
+  {
+    text_len_ = text_len;
+  }
 
-  void set_text_offset(int offset) { text_offset_ = offset;}
-  int get_text_offset() { return text_offset_;} 
+  const char *get_texts_data() {
+    return text_data_.c_str();
+  }
+
+  int32_t get_text_len() {
+    return text_len_;
+  }
+
+  struct textData &get_write_text() { return write_text_data_;}
 
   void set_rid(const RID &rid) { this->rid_ = rid; }
   void set_rid(const PageNum page_num, const SlotNum slot_num)
@@ -183,66 +278,8 @@ private:
   bool  has_text_ = false; /// 表示是否有text字段
   int   text_offset_ = -1; /// text 字段在record中的偏移量   | text_len+text_page_num |
   textData write_text_data_;     /// 存储text的结构
-  TextData read_text_data; /// 读取的text
-};
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-struct textData
-{
-  const char * data_;
-  int32_t len_;
-};
-
-struct textMeta
-{
-  int start_page_num;
-  int32_t len_;
+  std::string text_data_;
+  int text_len_ = 0;
 };
 
 
-class TextData{
-public:
-  TextData();
-  ~TextData();
-
-  bool init() {
-    idx_ = 0;
-  };
-
-  void open(){
-    write_ = true;
-  };
-
-  void close(){
-    write_ = false;
-  };
-
-  int32_t next(const char *data){
-    if (has_next)
-    {
-      data = datas_[idx_].data_;
-      return datas_[idx_++].len_;
-    }else{
-      data = nullptr;
-      return 0;
-    }
-  };
-
-  bool has_next(){
-    return (idx_ == datas_.size());
-  };
-
-  bool append_data(const char *data_para,int32_t len){
-    if (write_)
-    {
-      datas_.push_back({data_para,len});
-      return true;
-    }
-    return false;
-  };
-
-private:
-  std::vector<textData> datas_; //不管理内存
-  int idx_ = 0;
-  bool write_ = false;          //控制是否能写数据
-};

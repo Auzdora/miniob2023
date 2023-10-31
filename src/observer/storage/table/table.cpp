@@ -351,6 +351,12 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 
   const int custom_field_start_index = table_meta_.sys_field_num();
   const int normal_field_start_index = table_meta_.custom_fields_num() + custom_field_start_index;
+  // int system_field_offset = 0;
+  // for (int i =0; i < normal_field_start_index; i++)
+  // {
+  //   system_field_offset += table_meta_.field(i)->len();
+  // }
+  
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
@@ -375,7 +381,6 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   char *record_data = (char *)malloc(record_size);
   // text 控制变量
   bool has_text = false;
-  int text_offset = -1;
 
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
@@ -392,10 +397,12 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
       if (has_text)
         return RC::INTERNAL;
       has_text = true;
-      text_offset = field->offset();
+      record.set_has_text();
+      record.set_text_offset(field->offset());
       textMeta textmeta = {0,value.length()};
+      // 获取text 的实际地址
       record.set_write_text(value.data(),value.length());
-      memcpy(record_data + field->offset(),&textmeta,field->len());
+      memcpy(record_data + field->offset(),(const char *)&textmeta,field->len());
       continue;
     }
     if (value.is_null()){
@@ -616,6 +623,7 @@ RC Table::delete_record(const Record &record, bool mvcc_unique_update)
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }
   rc = record_handler_->delete_record(&record.rid());
+  rc = text_handler_->delete_text(&record.rid());
   return rc;
 }
 

@@ -25,6 +25,7 @@ struct RID;
 class Record;
 class DiskBufferPool;
 class RecordFileHandler;
+class TextPageHandler;
 class RecordFileScanner;
 class ConditionFilter;
 class DefaultConditionFilter;
