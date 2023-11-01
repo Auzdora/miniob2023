@@ -27,6 +27,7 @@ static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
 static const Json::StaticString FIELD_INDEXES("indexes");
 static const Json::StaticString FIELD_MULTI_INDEXES("multi_indexes");
+static const Json::StaticString FIELD_IS_VIEW("is_view");
 
 TableMeta::TableMeta(const TableMeta &other)
     : table_id_(other.table_id_),
@@ -47,14 +48,14 @@ void TableMeta::swap(TableMeta &other) noexcept
   std::swap(record_size_, other.record_size_);
 }
 
-RC TableMeta::init(int32_t table_id, const char *name, int field_num, const AttrInfoSqlNode attributes[])
+RC TableMeta::init(int32_t table_id, const char *name, int field_num, const AttrInfoSqlNode attributes[],bool is_view)
 {
   if (common::is_blank(name)) {
     LOG_ERROR("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
 
-  if (field_num <= 0 || nullptr == attributes) {
+  if ((field_num <= 0 || nullptr == attributes) && !is_view) {
     LOG_ERROR("Invalid argument. name=%s, field_num=%d, attributes=%p", name, field_num, attributes);
     return RC::INVALID_ARGUMENT;
   }
@@ -106,7 +107,7 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
   }
 
   record_size_ = field_offset;
-
+  isView_ = is_view;
   table_id_ = table_id;
   name_     = name;
   LOG_INFO("Sussessfully initialized table meta. table id=%d, name=%s", table_id, name);
@@ -266,6 +267,9 @@ int TableMeta::serialize(std::ostream &ss) const
   }
   table_value[FIELD_MULTI_INDEXES] = std::move(multi_indexes_value);
 
+  // serialize isview 
+  table_value[FIELD_IS_VIEW] = isView_;
+
   Json::StreamWriterBuilder builder;
   Json::StreamWriter *writer = builder.newStreamWriter();
 
@@ -375,6 +379,7 @@ int TableMeta::deserialize(std::istream &is)
     }
     multi_indexes_.swap(indexes);
   }
+  isView_ = table_value[FIELD_IS_VIEW].asBool();
 
   return (int)(is.tellg() - old_pos);
 }

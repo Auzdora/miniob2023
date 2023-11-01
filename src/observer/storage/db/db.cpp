@@ -17,12 +17,14 @@ See the Mulan PSL v2 for more details. */
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <vector>
+#include <filesystem>
 
 #include "common/log/log.h"
 #include "common/os/path.h"
 #include "common/lang/string.h"
 #include "storage/table/table_meta.h"
 #include "storage/table/table.h"
+#include "storage/view/view_meta.h"
 #include "storage/common/meta_util.h"
 #include "storage/trx/trx.h"
 #include "storage/clog/clog.h"
@@ -76,7 +78,7 @@ RC Db::init(const char *name, const char *dbpath)
   return rc;
 }
 
-RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoSqlNode *attributes)
+RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoSqlNode *attributes,bool is_view)
 {
   RC rc = RC::SUCCESS;
   // check table_name
@@ -89,7 +91,7 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoS
   std::string table_file_path = table_meta_file(path_.c_str(), table_name);
   Table *table = new Table();
   int32_t table_id = next_table_id_++;
-  rc = table->create(table_id, table_file_path.c_str(), table_name, path_.c_str(), attribute_count, attributes);
+  rc = table->create(table_id, table_file_path.c_str(), table_name, path_.c_str(), attribute_count, attributes,is_view);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create table %s.", table_name);
     delete table;
@@ -99,6 +101,33 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoS
   opened_tables_[table_name] = table;
   LOG_INFO("Create table success. table name=%s, table_id:%d", table_name, table_id);
   return RC::SUCCESS;
+}
+
+RC Db::create_view(const char *view_name, SelectSqlNode & selection){
+  RC rc = RC::SUCCESS;
+
+  std::string view_file_path = view_meta_file(path_.c_str(), view_name);
+  ViewMeta view;
+  view.init(view_file_path.c_str(),view_name,selection);
+
+  int fd = ::open(view_file_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  if (fd < 0) {
+    if (EEXIST == errno) {
+      return RC::SCHEMA_TABLE_EXIST;
+    }
+    return RC::IOERR_OPEN;
+  }
+
+  close(fd);
+
+  std::fstream fs;
+  fs.open(view_file_path.c_str(), std::ios_base::out | std::ios_base::binary);
+  if (!fs.is_open()) {
+    return RC::IOERR_OPEN;
+  }
+
+  view.serialize(fs);
+  return rc;
 }
 
 RC Db::drop_table(const char *table_name) {

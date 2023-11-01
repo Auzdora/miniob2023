@@ -62,7 +62,8 @@ RC Table::create(int32_t table_id,
                  const char *name, 
                  const char *base_dir, 
                  int attribute_count, 
-                 const AttrInfoSqlNode attributes[])
+                 const AttrInfoSqlNode attributes[],
+                 bool is_view)
 {
   if (table_id < 0) {
     LOG_WARN("invalid table id. table_id=%d, table_name=%s", table_id, name);
@@ -75,7 +76,7 @@ RC Table::create(int32_t table_id,
   }
   LOG_INFO("Begin to create table %s:%s", base_dir, name);
 
-  if (attribute_count <= 0 || nullptr == attributes) {
+  if ((attribute_count <= 0 || nullptr == attributes ) && !is_view) {
     LOG_WARN("Invalid arguments. table_name=%s, attribute_count=%d, attributes=%p", name, attribute_count, attributes);
     return RC::INVALID_ARGUMENT;
   }
@@ -97,7 +98,7 @@ RC Table::create(int32_t table_id,
   close(fd);
 
   // 创建文件
-  if ((rc = table_meta_.init(table_id, name, attribute_count, attributes)) != RC::SUCCESS) {
+  if ((rc = table_meta_.init(table_id, name, attribute_count, attributes,is_view)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
     return rc;  // delete table file
   }

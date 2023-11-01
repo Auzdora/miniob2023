@@ -36,7 +36,7 @@ public:
 
   void swap(TableMeta &other) noexcept;
 
-  RC init(int32_t table_id, const char *name, int field_num, const AttrInfoSqlNode attributes[]);
+  RC init(int32_t table_id, const char *name, int field_num, const AttrInfoSqlNode attributes[],bool is_view = false);
 
   RC add_index(const IndexMeta &index);
 
@@ -86,6 +86,7 @@ protected:
   std::vector<IndexMeta> indexes_;
   std::vector<std::tuple<std::string,int>> custom_fields_;  // 自定义字段 <字段名，长度>
   std::vector<IndexMeta> multi_indexes_; // 多重索引
+  bool isView_ = false;                   // 是否是视图
 
   int record_size_ = 0;
 };

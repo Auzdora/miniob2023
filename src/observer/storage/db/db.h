@@ -45,7 +45,8 @@ public:
    */
   RC init(const char *name, const char *dbpath);
 
-  RC create_table(const char *table_name, int attribute_count, const AttrInfoSqlNode *attributes);
+  RC create_table(const char *table_name, int attribute_count, const AttrInfoSqlNode *attributes, bool is_view = false);
+  RC create_view(const char *view_name, SelectSqlNode & selection);
   RC drop_table(const char *table_name);
 
   Table *find_table(const char *table_name) const;

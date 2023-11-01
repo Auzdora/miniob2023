@@ -74,6 +74,7 @@ int aggr_start_offset = 0; // for group by and aggr
         INSERT
         DELETE
         UPDATE
+        VIEW
         LBRACE
         RBRACE
         COMMA
@@ -420,6 +421,14 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       create_table.relation_name = $3;
       free($3);
       create_table.use_select = true;
+    }
+    | CREATE VIEW ID AS select_stmt
+    {
+      $$ = $5;
+      $$->flag = SCF_CREATE_VIEW;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
     }
     | CREATE TABLE ID select_stmt 
     {

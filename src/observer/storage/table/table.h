@@ -58,7 +58,8 @@ public:
             const char *name, 
             const char *base_dir, 
             int attribute_count, 
-            const AttrInfoSqlNode attributes[]);
+            const AttrInfoSqlNode attributes[],
+            bool is_view = false);
   /**
    * 删除一个表
    * 
