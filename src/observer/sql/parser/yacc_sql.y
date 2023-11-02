@@ -746,6 +746,14 @@ select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM ID alias rel_list innerJoin_list where order_by group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($10 != nullptr) {
+        $$->selection.use_group_by = true;
+        $$->selection.groupbys.swap(*$10);
+        std::reverse($$->selection.groupbys.begin(), $$->selection.groupbys.end());
+        delete $10;
+      } else {
+        $$->selection.use_group_by = false;
+      }
       if ($2 != nullptr) {
         $$->selection.expressions.swap(*$2);
         for (const auto &expr : $$->selection.expressions) {
@@ -802,14 +810,14 @@ select_stmt:        /*  select 语句的语法解析树*/
         std::reverse($$->selection.orderbys.begin(), $$->selection.orderbys.end());
         delete $9;
       }
-      if ($10 != nullptr) {
-        $$->selection.use_group_by = true;
-        $$->selection.groupbys.swap(*$10);
-        std::reverse($$->selection.groupbys.begin(), $$->selection.groupbys.end());
-        delete $10;
-      } else {
-        $$->selection.use_group_by = false;
-      }
+      // if ($10 != nullptr) {
+      //   $$->selection.use_group_by = true;
+      //   $$->selection.groupbys.swap(*$10);
+      //   std::reverse($$->selection.groupbys.begin(), $$->selection.groupbys.end());
+      //   delete $10;
+      // } else {
+      //   $$->selection.use_group_by = false;
+      // }
       // having conditon
       if ($11 != nullptr) {
         $$->selection.having_conditions.swap(*$11);
