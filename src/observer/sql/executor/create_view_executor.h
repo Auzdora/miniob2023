@@ -79,6 +79,9 @@ private:
  *              left_con_type
  *              right_con_type
  *      orderbys:
+ *            std::string  relation_name;
+              std::string  attribute_name;
+              OrderType    order_type;
  *      expressions:
  *          []:
  *              expression

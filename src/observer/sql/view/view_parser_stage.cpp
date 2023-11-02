@@ -30,7 +30,12 @@ using namespace common;
 
 RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
 {
+  ParsedSqlResult parsed_sql_result;
 
+  std::string sql;
+  get_view_sql_string(sql);
+  RC rc = parse(sql.c_str(), &parsed_sql_result);
+  
 
     
 //   RC rc = RC::SUCCESS;
@@ -58,4 +63,9 @@ RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
 //   sql_event->set_stmt(stmt);
 
 //   return rc;
+}
+
+RC ViewParseStage::get_view_sql_string(std::string &sql)
+{
+    sql = "select t1.id as id, t1.age as age, t2.name as name from create_view_t1 t1, create_view_t2 t2 where t1.id=t2.id";
 }

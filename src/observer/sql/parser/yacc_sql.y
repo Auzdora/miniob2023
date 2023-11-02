@@ -746,6 +746,7 @@ select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM ID alias rel_list innerJoin_list where order_by group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
+      $$->selection.select_string = token_name(sql_string, &@$);
       if ($2 != nullptr) {
         $$->selection.expressions.swap(*$2);
         for (const auto &expr : $$->selection.expressions) {

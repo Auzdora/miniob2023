@@ -220,6 +220,7 @@ struct SelectSqlNode
   std::vector<ExprSqlNode>        groupbys;
   std::vector<ConditionSqlNode>   having_conditions;
   bool use_group_by;
+  std::string                     select_string;
 };
 
 /**

@@ -14,6 +14,7 @@
 using namespace std;
 
 static const Json::StaticString FIELD_VIEW_NAME("view_name");
+static const Json::StaticString FIELD_SQL_STRING("sql_string");
 static const Json::StaticString FIELD_ALIAS("alias");
 static const Json::StaticString FIELD_REL_NAME("relation_name");
 static const Json::StaticString FIELD_ATTR_NAME("attribute_name");
@@ -25,6 +26,22 @@ static const Json::StaticString FIELD_SELECT_RELATIONS("relations");
 
 static const Json::StaticString FIELD_SELECT_AGGREGATIONS("aggregations");
 static const Json::StaticString FIELD_AGGR_NAME("aggregation_name");
+
+static const Json::StaticString FIELD_FROM_CONDITIONS("conditions");
+static const Json::StaticString FIELD_COMP("comp");
+static const Json::StaticString FIELD_LEFT_CON_TYPE("left_con_type");
+static const Json::StaticString FIELD_RIGHT_CON_TYPE("right_con_type");
+
+static const Json::StaticString FIELD_LEFT_EXPR("right_expr_node");
+static const Json::StaticString FIELD_RIGHT_EXPR("left_expr_node");
+
+static const Json::StaticString FIELD_ATTR_TYPE("attr_type");
+static const Json::StaticString FIELD_LENGTH("length_");
+static const Json::StaticString FIELD_NUM_VALUE("num_value_");
+static const Json::StaticString FIELD_STR_VALUE("str_value_");
+
+static const Json::StaticString FIELD_ORDERBYS("orderbys");
+static const Json::StaticString FIELD_ORDERBY_TYPE("order_type");
 
 ViewMeta::ViewMeta(const ViewMeta &other)
 {}
@@ -46,43 +63,127 @@ int ViewMeta::serialize(std::ostream &ss) const
 {   
     Json::Value view_value_;
     view_value_[FIELD_VIEW_NAME] = view_name_;
+    view_value_[FIELD_SQL_STRING] = selection_->select_string;
 
     // attributes
-    Json::Value select_attrs;
-    for (auto attr : selection_->attributes)
-    {
-        Json::Value select_attr;
-        select_attr[FIELD_ATTR_NAME] = attr.attribute_name;
-        select_attr[FIELD_SELECT_ATTR_ALIAS] = attr.attribute_alias;
-        select_attr[FIELD_REL_NAME] = attr.relation_name;
-        select_attrs.append(select_attr);
-    }
-    view_value_[FIELD_SELECT_ATTRS] = select_attrs;
+    // Json::Value select_attrs;
+    // Json::Value select_in_attrs;
+    // for (auto attr : selection_->attributes)
+    // {
+    //     Json::Value select_attr;
+    //     select_attr[FIELD_ATTR_NAME] = attr.attribute_name;
+    //     select_attr[FIELD_SELECT_ATTR_ALIAS] = attr.attribute_alias;
+    //     select_attr[FIELD_REL_NAME] = attr.relation_name;
+    //     select_in_attrs.append(select_attr);
+    // }
+    // select_attrs[FIELD_SELECT_ATTRS] = select_in_attrs;
 
-    // relations
-    Json::Value relations;
-    for (auto rel : selection_->relations)
-    {
-        Json::Value relation;
-        relation[FIELD_REL_NAME] = rel.relation_name;
-        relation[FIELD_ALIAS] = rel.alias;
-        relations.append(relation);
-    }
-    view_value_[FIELD_SELECT_RELATIONS] = relations;
+    // // aggregations
+    // Json::Value aggregations;
+    // Json::Value select_in_aggrs;
+    // for (auto aggr : selection_->aggregations)
+    // {
+    //     Json::Value aggregation;
+    //     aggregation[FIELD_REL_NAME] = aggr.relation_name;
+    //     aggregation[FIELD_ALIAS] = aggr.alias;
+    //     aggregation[FIELD_AGGR_NAME] = aggr.aggregation_name;
+    //     aggregation[FIELD_ATTR_NAME] = aggr.attribute_name;
+    //     select_in_aggrs.append(aggregation);
+    // }
+    // aggregations[FIELD_SELECT_AGGREGATIONS] = select_in_aggrs;
+    // select_attrs[FIELD_SELECT_AGGREGATIONS] = aggregations;
+    // view_value_[FIELD_SELECT_ATTRS] = select_attrs;
 
-    // aggregations
-    Json::Value aggregations;
-    for (auto aggr : selection_->aggregations)
-    {
-        Json::Value aggregation;
-        aggregation[FIELD_REL_NAME] = aggr.relation_name;
-        aggregation[FIELD_ALIAS] = aggr.alias;
-        aggregation[FIELD_AGGR_NAME] = aggr.aggregation_name;
-        aggregation[FIELD_ATTR_NAME] = aggr.attribute_name;
-        aggregations.append(aggregation);
-    }
-    view_value_[FIELD_SELECT_AGGREGATIONS] = aggregations;
+    // // relations
+    // Json::Value relations;
+    // for (auto rel : selection_->relations)
+    // {
+    //     Json::Value relation;
+    //     relation[FIELD_REL_NAME] = rel.relation_name;
+    //     relation[FIELD_ALIAS] = rel.alias;
+    //     relations.append(relation);
+    // }
+    // view_value_[FIELD_SELECT_RELATIONS] = relations;
 
+    // Json::Value conditions;  // 暂时不考虑子查询
+    // for (auto cond : selection_->conditions)
+    // {
+    //     Json::Value condition;
+    //     Json::Value left_value;
+    //     left_value[FIELD_ATTR_TYPE] = cond.left_value.attr_type();
+    //     left_value[FIELD_LENGTH] = cond.left_value.length();
+    //     switch (cond.left_value.attr_type())
+    //     {
+    //     case INTS:
+    //         left_value[FIELD_NUM_VALUE] = cond.left_value.get_int();
+    //         break;
+    //     case FLOATS:
+    //         left_value[FIELD_NUM_VALUE] = cond.left_value.get_float();
+    //         break;
+    //     case BOOLEANS:
+    //         left_value[FIELD_NUM_VALUE] = cond.left_value.get_boolean();
+    //         break;
+    //     case DATES:
+    //         left_value[FIELD_NUM_VALUE] = cond.left_value.get_date();
+    //         break;
+    //     case OBNULL:
+    //         left_value[FIELD_NUM_VALUE] = 0;
+    //         break;
+    //     default:
+    //         break;
+    //     }
+    //     left_value[FIELD_STR_VALUE] = cond.left_value.get_string();
+
+    //     Json::Value right_value;
+    //     right_value[FIELD_ATTR_TYPE] = cond.right_value.attr_type();
+    //     right_value[FIELD_LENGTH] = cond.right_value.length();
+    //     switch (cond.left_value.attr_type())
+    //     {
+    //     case INTS:
+    //         right_value[FIELD_NUM_VALUE] = cond.right_value.get_int();
+    //         break;
+    //     case FLOATS:
+    //         right_value[FIELD_NUM_VALUE] = cond.right_value.get_float();
+    //         break;
+    //     case BOOLEANS:
+    //         right_value[FIELD_NUM_VALUE] = cond.right_value.get_boolean();
+    //         break;
+    //     case DATES:
+    //         right_value[FIELD_NUM_VALUE] = cond.right_value.get_date();
+    //         break;
+    //     case OBNULL:
+    //         right_value[FIELD_NUM_VALUE] = 0;
+    //         break;
+    //     default:
+    //         break;
+    //     }
+    //     right_value[FIELD_STR_VALUE] = cond.right_value.get_string();
+
+    //     Json::Value left_attr;
+    //     left_attr[FIELD_REL_NAME] = cond.left_attr.relation_name;
+    //     left_attr[FIELD_ATTR_NAME] = cond.left_attr.attribute_name;
+    //     left_attr[FIELD_SELECT_ATTR_ALIAS] = cond.left_attr.attribute_alias;
+    //     Json::Value right_attr;
+    //     right_attr[FIELD_REL_NAME] = cond.right_attr.relation_name;
+    //     right_attr[FIELD_ATTR_NAME] = cond.right_attr.attribute_name;
+    //     right_attr[FIELD_SELECT_ATTR_ALIAS] = cond.right_attr.attribute_alias;
+
+    //     condition[FIELD_LEFT_VALUE] = left_value;
+    //     condition[FIELD_RIGHT_VALUE] = right_value;
+    //     condition[FIELD_LEFT_ATTR] = left_attr;
+    //     condition[FIELD_RIGHT_ATTR] = right_attr;
+    //     condition[FIELD_LEFT_CON_TYPE] = cond.left_con_type;
+    //     condition[FIELD_RIGHT_CON_TYPE] = cond.right_con_type;
+    //     condition[FIELD_COMP] = cond.comp;
+
+    // }           // 没有group by
+    // view_value_[FIELD_FROM_CONDITIONS] = conditions;
+
+    // Json::Value orderbys;
+    // for (auto order : selection_->orderbys)
+    // {
+
+    // }
     Json::StreamWriterBuilder builder;
     Json::StreamWriter *writer = builder.newStreamWriter();
 

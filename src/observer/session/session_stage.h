@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/resolve_stage.h"
 #include "sql/optimizer/optimize_stage.h"
 #include "sql/executor/execute_stage.h"
+#include "sql/view/view_parser_stage.h"
 
 /**
  * @brief SEDA处理的stage
@@ -59,6 +60,7 @@ protected:
 private:
   QueryCacheStage query_cache_stage_;
   ParseStage      parse_stage_;
+  ViewParseStage  view_parse_stage_;
   ResolveStage    resolve_stage_;
   OptimizeStage   optimize_stage_;
   ExecuteStage    execute_stage_;

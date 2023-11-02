@@ -25,5 +25,6 @@ class SQLStageEvent;
 class ViewParseStage
 {
 public:
+  RC get_view_sql_string(std::string &sql);
   RC handle_request(SQLStageEvent *sql_event);
 };
