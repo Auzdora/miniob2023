@@ -747,8 +747,11 @@ select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM ID alias rel_list innerJoin_list where order_by group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
+      std::cout << "hehre" << std::endl;
       $$->selection.select_string = token_name(sql_string, &@$);
+      std::cout << "hehre" << std::endl;
       if ($10 != nullptr) {
+        std::cout << "sss" << std::endl;
         $$->selection.use_group_by = true;
         $$->selection.groupbys.swap(*$10);
         std::reverse($$->selection.groupbys.begin(), $$->selection.groupbys.end());
@@ -756,6 +759,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       } else {
         $$->selection.use_group_by = false;
       }
+      std::cout << "hehre" << std::endl;
       if ($2 != nullptr) {
         $$->selection.expressions.swap(*$2);
         for (const auto &expr : $$->selection.expressions) {
