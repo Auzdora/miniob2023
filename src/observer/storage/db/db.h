@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 #include "sql/parser/parse_defs.h"
+#include "storage/view/view_meta.h"
 
 class Table;
 class CLogManager;
@@ -51,6 +52,7 @@ public:
 
   Table *find_table(const char *table_name) const;
   Table *find_table(int32_t table_id) const;
+  ViewMeta get_view(const char *view_name) const;
 
   const char *name() const;
 
@@ -64,11 +66,13 @@ public:
 
 private:
   RC open_all_tables();
+  RC load_all_views();
 
 private:
   std::string name_;
   std::string path_;
   std::unordered_map<std::string, Table *> opened_tables_;
+  std::unordered_map<std::string, ViewMeta> views_;
   std::unique_ptr<CLogManager> clog_manager_;
 
   /// 给每个table都分配一个ID，用来记录日志。这里假设所有的DDL都不会并发操作，所以相关的数据都不上锁

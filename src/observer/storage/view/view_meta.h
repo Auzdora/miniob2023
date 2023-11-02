@@ -37,7 +37,7 @@ public:
 
   void swap(ViewMeta &other) noexcept;
 
-  RC init(const char * view_file_path, const char *view_name, SelectSqlNode & selection);
+  RC init(const char * view_file_path, const char *view_name, SelectSqlNode *selection);
 
 public:
   int serialize(std::ostream &os) const override;
@@ -45,9 +45,12 @@ public:
   int get_serial_size() const override;
   void to_string(std::string &output) const override;
   void desc(std::ostream &os) const;
+  std::string get_view_name() const { return view_name_; }
+  std::string get_sql_string()const { return sql_string_; }
 
 protected:
   std::string view_name_;
+  std::string sql_string_;
   std::string view_file_path_;
   SelectSqlNode * selection_;
 };

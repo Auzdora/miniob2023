@@ -54,6 +54,8 @@ public:
     return &fields_;
   }
 
+  bool isView() const { return isView_; }
+
   const int find_user_index_by_field(const char* fieldmeta) const;
   auto trx_fields() const -> const std::pair<const FieldMeta *, int>;
   
