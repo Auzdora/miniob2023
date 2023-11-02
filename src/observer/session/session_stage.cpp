@@ -107,6 +107,7 @@ void SessionStage::handle_request(StageEvent *event)
   Communicator *communicator = sev->get_communicator();
   bool need_disconnect = false;
   RC rc = communicator->write_result(sev, need_disconnect);
+  RC rc2 = handle_update_view_table(&sql_event);
   LOG_INFO("write result return %s", strrc(rc));
   if (need_disconnect) {
     Server::close_connection(communicator);
@@ -167,7 +168,89 @@ RC SessionStage::handle_sql(SQLStageEvent *sql_event)
 }
 
 
-RC  SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
+RC SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
   RC rc = RC::SUCCESS;
-  
+  Session *session = sql_event->session_event()->session();
+  Db* db = session->get_current_db();
+  std::string table_name;
+  switch (sql_event->sql_node()->flag)
+  {
+  case SCF_INSERT:
+    {
+      table_name = sql_event->sql_node()->insertion.relation_name;
+    }
+    break;
+  case SCF_UPDATE:
+    {
+      table_name = sql_event->sql_node()->update.relation_name;
+    }
+    break;
+  case SCF_DELETE:
+    {
+      table_name = sql_event->sql_node()->deletion.relation_name;
+    }
+    break;
+  default:
+    return RC::SUCCESS;
+    break;
+  }
+  const std::unordered_map<std::string, ViewMeta> views = db->all_view();
+  bool is_in = false;
+  ViewMeta viewmeta;
+  for (auto &itr : views)
+  {
+    for (auto rel : itr.second.relate_tables())
+    {
+      if (rel == table_name)
+      {
+        is_in = true;
+        viewmeta = itr.second;
+        break;
+      }
+    }
+    if (is_in)
+      break;
+  }
+  if (is_in)
+  {
+    db->drop_table(viewmeta.get_view_name().c_str());
+    std::unique_ptr<ParsedSqlNode> create_view_sql = std::unique_ptr<ParsedSqlNode>(new ParsedSqlNode(SCF_CREATE_TABLE_SELECT));
+    ParsedSqlResult parsed_sql_result;
+    std::string view_sql = viewmeta.get_sql_string();
+    create_view_sql->create_table.use_select = true;
+    create_view_sql->create_table.is_view = true;
+
+    parse(view_sql.c_str(), &parsed_sql_result);
+    create_view_sql->selection = parsed_sql_result.sql_nodes()[0].get()->selection;
+
+    sql_event->set_sql_node(std::move(create_view_sql));
+    
+    rc = resolve_stage_.handle_request(sql_event);
+    if (OB_FAIL(rc)) {
+      LOG_TRACE("failed to do resolve. rc=%s", strrc(rc));
+      return rc;
+    }
+    
+    rc = optimize_stage_.handle_request(sql_event);
+    if (rc != RC::UNIMPLENMENT && rc != RC::SUCCESS) {
+      LOG_TRACE("failed to do optimize. rc=%s", strrc(rc));
+      return rc;
+    }
+    
+    rc = execute_stage_.handle_request(sql_event);
+    if (OB_FAIL(rc)) {
+      LOG_TRACE("failed to do execute. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    SqlResult *sql_result = sql_event->session_event()->sql_result();
+    rc = sql_result->open();
+    Tuple *tuple = nullptr;
+    while(sql_result->next_tuple(tuple) == RC::SUCCESS)
+    {
+
+    }
+    return RC::SUCCESS;
+  }
+  return RC::SUCCESS;
 }

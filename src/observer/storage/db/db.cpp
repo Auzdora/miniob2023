@@ -259,7 +259,7 @@ RC Db::load_all_views(){
     }
     fs.close();
     
-    views_.emplace(viemeta.get_view_name(),viemeta);
+    views_.insert(std::pair<std::string, ViewMeta>(viemeta.get_view_name(),viemeta));
   }
   return rc;
 }

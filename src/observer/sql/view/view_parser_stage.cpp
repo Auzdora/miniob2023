@@ -83,6 +83,32 @@ RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
   case SCF_DELETE:
     
     break;
+  case SCF_INSERT:
+    {
+      bool has_view = false;
+      std::string rel_name = input_sql_node->insertion.relation_name;
+      Table *table = db->find_table(rel_name.c_str());
+      if (table == nullptr)
+      {
+        return RC::SUCCESS;
+      }
+      if(table->check_view())
+      {
+        std::string view_name = table->name();
+        auto meta = db->get_view(rel_name.c_str());
+        view_sql = meta.get_sql_string();
+        view_name_ = meta.get_view_name();
+        parse(view_sql.c_str(), &parsed_sql_result);
+        has_view = true;
+      }
+      if (has_view)
+      {
+        RC rc = rewrite_sql_node(*input_sql_node,*parsed_sql_result.sql_nodes()[0].get());
+        //sql_event->set_sql_node(std::move(parsed_sql_result.sql_nodes()[0]));
+        return rc;
+      }
+    }
+    break;
   default:
     return RC::SUCCESS;
     break;
@@ -171,12 +197,12 @@ RC ViewParseStage::rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode
     break;
    case SCF_CREATE_VIEW:
     {
-
+        
     }
     break;
-   case SCF_UPDATE:
+   case SCF_INSERT:
     {
-      
+      input_sql_node.insertion.relation_name = view_sql_node.selection.relations[0].relation_name;
     }
     break;
    case SCF_DELETE:

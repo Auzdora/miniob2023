@@ -57,6 +57,7 @@ public:
   const char *name() const;
 
   void all_tables(std::vector<std::string> &table_names) const;
+  const std::unordered_map<std::string, ViewMeta> all_view() const { return views_; }
 
   RC sync();
 

@@ -47,6 +47,7 @@ public:
   void desc(std::ostream &os) const;
   std::string get_view_name() const { return view_name_; }
   std::string get_sql_string()const { return sql_string_; }
+  std::vector<std::string> relate_tables() const { return relate_tables_; }
 
 protected:
   std::string view_name_;

@@ -2505,6 +2505,14 @@ yyreduce:
     {
       (yyval.sql_node) = new ParsedSqlNode(SCF_SELECT);
       (yyval.sql_node)->selection.select_string = token_name(sql_string, &(yyloc));
+      if ((yyvsp[-1].group_by_list) != nullptr) {
+        (yyval.sql_node)->selection.use_group_by = true;
+        (yyval.sql_node)->selection.groupbys.swap(*(yyvsp[-1].group_by_list));
+        std::reverse((yyval.sql_node)->selection.groupbys.begin(), (yyval.sql_node)->selection.groupbys.end());
+        delete (yyvsp[-1].group_by_list);
+      } else {
+        (yyval.sql_node)->selection.use_group_by = false;
+      }
       if ((yyvsp[-9].expression_list) != nullptr) {
         (yyval.sql_node)->selection.expressions.swap(*(yyvsp[-9].expression_list));
         for (const auto &expr : (yyval.sql_node)->selection.expressions) {
@@ -2560,14 +2568,6 @@ yyreduce:
         (yyval.sql_node)->selection.orderbys.swap(*(yyvsp[-2].order_by_list));
         std::reverse((yyval.sql_node)->selection.orderbys.begin(), (yyval.sql_node)->selection.orderbys.end());
         delete (yyvsp[-2].order_by_list);
-      }
-      if ((yyvsp[-1].group_by_list) != nullptr) {
-        (yyval.sql_node)->selection.use_group_by = true;
-        (yyval.sql_node)->selection.groupbys.swap(*(yyvsp[-1].group_by_list));
-        std::reverse((yyval.sql_node)->selection.groupbys.begin(), (yyval.sql_node)->selection.groupbys.end());
-        delete (yyvsp[-1].group_by_list);
-      } else {
-        (yyval.sql_node)->selection.use_group_by = false;
       }
       // having conditon
       if ((yyvsp[0].having) != nullptr) {

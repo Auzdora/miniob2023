@@ -56,7 +56,7 @@ protected:
 protected:
   void handle_request(common::StageEvent *event);
   RC   handle_sql(SQLStageEvent *sql_event);
-  RC   handle_update_view_table(SQLStageEvent * updat_view_event);
+  RC   handle_update_view_table(SQLStageEvent *sql_event);
 
 private:
   QueryCacheStage query_cache_stage_;
