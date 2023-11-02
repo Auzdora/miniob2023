@@ -133,7 +133,11 @@ RC ViewParseStage::rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode
       {
         for (auto &vattr : view_selection.attributes)
         {
-          if (attr.attribute_name == vattr.attribute_alias || attr.attribute_name == vattr.attribute_name)
+          if (attr.attribute_name == "*")
+          {
+            attr.relation_name = "";
+          }
+          else if (attr.attribute_name == vattr.attribute_alias || attr.attribute_name == vattr.attribute_name)
           {
             attr.attribute_name = vattr.attribute_name;
             attr.relation_name = vattr.relation_name;
@@ -144,6 +148,17 @@ RC ViewParseStage::rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode
       view_selection.attributes.swap(input_selection.attributes);
 
       view_selection.conditions.insert(view_selection.conditions.end(),input_selection.conditions.begin(),input_selection.conditions.end());
+      
+      for (int i = 0; i < view_selection.expressions.size(); i++)
+      {
+        switch (view_selection.expressions[i].expression->type())
+        {
+        default:
+          break;
+        }
+      }
+      view_selection.expressions.swap(input_selection.expressions);
+
       return RC::SUCCESS;
     } 
     break;
