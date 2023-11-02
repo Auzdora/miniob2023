@@ -77,7 +77,8 @@ RC CreateTableSelectPhysicalOperator::next()
         attr_info.nullable = tmp_val.is_nullable();
         attr_infos.push_back(attr_info);
       }
-      rc = db_->create_table(table_name, expr_names_.size(), attr_infos.data());
+
+      rc = db_->create_table(table_name, expr_names_.size(), attr_infos.data(),is_view_);
       if (rc != RC::SUCCESS) {
         LOG_WARN("create table select failed during create table");
         return rc;

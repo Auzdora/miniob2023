@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 static constexpr const char *TABLE_META_SUFFIX = ".table";
 static constexpr const char *TABLE_META_FILE_PATTERN = ".*\\.table$";
+static constexpr const char *VIEW_META_FILE_PATTERN = ".*\\.view$";
 static constexpr const char *TABLE_DATA_SUFFIX = ".data";
 static constexpr const char *TABLE_INDEX_SUFFIX = ".index";
 static constexpr const char *VIEW_META_SUFFIX = ".view";

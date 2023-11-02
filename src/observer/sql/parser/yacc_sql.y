@@ -428,6 +428,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       $$->flag = SCF_CREATE_VIEW;
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
+      create_table.is_view = true;
       free($3);
     }
     | CREATE TABLE ID select_stmt 
@@ -746,6 +747,7 @@ select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM ID alias rel_list innerJoin_list where order_by group_by having
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
+      $$->selection.select_string = token_name(sql_string, &@$);
       if ($10 != nullptr) {
         $$->selection.use_group_by = true;
         $$->selection.groupbys.swap(*$10);
@@ -810,14 +812,6 @@ select_stmt:        /*  select 语句的语法解析树*/
         std::reverse($$->selection.orderbys.begin(), $$->selection.orderbys.end());
         delete $9;
       }
-      // if ($10 != nullptr) {
-      //   $$->selection.use_group_by = true;
-      //   $$->selection.groupbys.swap(*$10);
-      //   std::reverse($$->selection.groupbys.begin(), $$->selection.groupbys.end());
-      //   delete $10;
-      // } else {
-      //   $$->selection.use_group_by = false;
-      // }
       // having conditon
       if ($11 != nullptr) {
         $$->selection.having_conditions.swap(*$11);

@@ -38,6 +38,10 @@ private:
 /**
  * select_sql_node_:
  *      aggregations:
+ *   std::string relation_name;      ///< 表名，可能是alias，需要在stmt做映射解析
+     std::string aggregation_name;   ///< aggregation name          聚合函数名
+     std::string attribute_name;     ///< attribute name            属性名
+     std::string alias;
  *      attributes: 
  *         []:
  *              relation_name
@@ -79,6 +83,9 @@ private:
  *              left_con_type
  *              right_con_type
  *      orderbys:
+ *            std::string  relation_name;
+              std::string  attribute_name;
+              OrderType    order_type;
  *      expressions:
  *          []:
  *              expression

@@ -15,7 +15,7 @@
 class CreateTableSelectLogicalOperator : public LogicalOperator 
 {
 public:
-  CreateTableSelectLogicalOperator(std::string table_name, const std::vector<std::string> &expr_names, const std::vector<std::string> &star_field_names, Db *db) : table_name_(table_name), expr_names_(expr_names), star_field_names_(star_field_names), db_(db) {}
+  CreateTableSelectLogicalOperator(std::string table_name, const std::vector<std::string> &expr_names, const std::vector<std::string> &star_field_names, Db *db, bool is_view) : table_name_(table_name), expr_names_(expr_names), star_field_names_(star_field_names), db_(db), is_view_(is_view) {}
   virtual ~CreateTableSelectLogicalOperator() = default;
 
   LogicalOperatorType type() const override
@@ -26,6 +26,7 @@ public:
   const std::string table_name() const { return table_name_; }
   const std::vector<std::string> expr_names() const { return expr_names_; }
   const std::vector<std::string> star_field_names() const { return star_field_names_; }
+  const bool is_view() const { return is_view_; }
   Db *get_db() { return db_; }
 
 private:
@@ -33,4 +34,5 @@ private:
   std::string table_name_;
   std::vector<std::string> expr_names_;
   std::vector<std::string> star_field_names_;
+  bool is_view_ = false;
 };

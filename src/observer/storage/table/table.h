@@ -114,6 +114,7 @@ public:
 public:
   int32_t table_id() const { return table_meta_.table_id(); }
   const char *name() const;
+  bool check_view() const { return table_meta_.isView(); }
 
   /**
    * @brief 检查数据是否能为null

@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/rc.h"
+#include "sql/parser/parse_defs.h"
 
 class SQLStageEvent;
 
@@ -26,4 +27,7 @@ class ViewParseStage
 {
 public:
   RC handle_request(SQLStageEvent *sql_event);
+  RC rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode &view_sql_node);
+private:
+  std::string view_name_;
 };

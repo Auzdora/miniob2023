@@ -220,6 +220,7 @@ struct SelectSqlNode
   std::vector<ExprSqlNode>        groupbys;
   std::vector<ConditionSqlNode>   having_conditions;
   bool use_group_by;
+  std::string                     select_string;
 };
 
 /**
@@ -291,6 +292,7 @@ struct CreateTableSqlNode {
   std::string relation_name;               ///< Relation name
   std::vector<AttrInfoSqlNode> attr_infos; ///< attributes
   bool use_select;                         ///< indicate it is a copy create
+  bool is_view = false;
 };
 
 /**

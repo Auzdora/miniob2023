@@ -494,7 +494,7 @@ RC LogicalPlanGenerator::create_plan(
   unique_ptr<LogicalOperator> select_oper;
   LogicalPlanGenerator::create_plan(create_table_select_stmt->select_stmt(), select_oper);
 
-  unique_ptr<LogicalOperator> create_table_select_oper(new CreateTableSelectLogicalOperator(create_table_select_stmt->table_name(), create_table_select_stmt->field_names(), create_table_select_stmt->star_field_names(), create_table_select_stmt->get_db()));
+  unique_ptr<LogicalOperator> create_table_select_oper(new CreateTableSelectLogicalOperator(create_table_select_stmt->table_name(), create_table_select_stmt->field_names(), create_table_select_stmt->star_field_names(), create_table_select_stmt->get_db(),create_table_select_stmt->is_view()));
   create_table_select_oper->add_child(std::move(select_oper));
   
   logical_operator = std::move(create_table_select_oper);

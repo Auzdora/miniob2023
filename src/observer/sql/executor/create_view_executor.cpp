@@ -14,8 +14,11 @@
 
 RC CreateViewExecutor::execute(SQLStageEvent *sql_event)
 {
-  Stmt *stmt = sql_event->stmt();
   Session *session = sql_event->session_event()->session();
+  Db *db = session->get_current_db();
+  Stmt *stmt = nullptr;
+  RC rc = Stmt::create_stmt(db, *sql_event->sql_node().get(), stmt);
+  
   ASSERT(stmt->type() == StmtType::CREATE_VIEW, 
          "create table executor can not run this command: %d", static_cast<int>(stmt->type()));
 
@@ -24,7 +27,7 @@ RC CreateViewExecutor::execute(SQLStageEvent *sql_event)
   const int attribute_count = static_cast<int>(create_view_stmt->attr_infos().size());
 
   const char *table_name = create_view_stmt->table_name().c_str();
-  RC rc = session->get_current_db()->create_table(table_name, attribute_count, create_view_stmt->attr_infos().data(),true);
+  //RC rc = session->get_current_db()->create_table(table_name, attribute_count, create_view_stmt->attr_infos().data(),true);
   rc = session->get_current_db()->create_view(table_name,create_view_stmt->get_select_sql_node());
 
   return rc;

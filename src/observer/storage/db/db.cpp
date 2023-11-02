@@ -70,6 +70,12 @@ RC Db::init(const char *name, const char *dbpath)
     return rc;
   }
 
+  rc = load_all_views();
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to load all views. dbpath=%s, rc=%s", dbpath, strrc(rc));
+    return rc;
+  }
+
   rc = recover();
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to recover db. dbpath=%s, rc=%s", dbpath, strrc(rc));
@@ -108,7 +114,7 @@ RC Db::create_view(const char *view_name, SelectSqlNode & selection){
 
   std::string view_file_path = view_meta_file(path_.c_str(), view_name);
   ViewMeta view;
-  view.init(view_file_path.c_str(),view_name,selection);
+  view.init(view_file_path.c_str(),view_name,&selection);
 
   int fd = ::open(view_file_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
   if (fd < 0) {
@@ -127,6 +133,8 @@ RC Db::create_view(const char *view_name, SelectSqlNode & selection){
   }
 
   view.serialize(fs);
+  views_.insert(std::pair<std::string, ViewMeta>(view_name,view));
+
   return rc;
 }
 
@@ -168,6 +176,14 @@ Table *Db::find_table(const char *table_name) const
     return iter->second;
   }
   return nullptr;
+}
+
+ViewMeta Db::get_view(const char *view_name) const{
+  std::unordered_map<std::string, ViewMeta>::const_iterator iter = views_.find(view_name);
+  if (iter != views_.end()) {
+    return (iter->second);
+  }
+  return ViewMeta();
 }
 
 Table *Db::find_table(int32_t table_id) const
@@ -214,6 +230,37 @@ RC Db::open_all_tables()
   }
 
   LOG_INFO("All table have been opened. num=%d", opened_tables_.size());
+  return rc;
+}
+
+RC Db::load_all_views(){
+  std::vector<std::string> view_meta_files;
+  int ret = common::list_file(path_.c_str(), VIEW_META_FILE_PATTERN, view_meta_files);
+  if (ret < 0) {
+    LOG_ERROR("Failed to list table meta files under %s.", path_.c_str());
+    return RC::IOERR_READ;
+  }
+
+  RC rc = RC::SUCCESS;
+  for (const std::string &filename : view_meta_files) {
+    std::fstream fs;
+    std::string meta_file_path = std::string(path_) + common::FILE_PATH_SPLIT_STR + filename;
+    fs.open(meta_file_path, std::ios_base::in | std::ios_base::binary);
+    if (!fs.is_open()) {
+      LOG_ERROR("Failed to open meta file for read. file name=%s, errmsg=%s", meta_file_path.c_str(), strerror(errno));
+      return RC::IOERR_OPEN;
+    }
+
+    ViewMeta viemeta;
+    if (viemeta.deserialize(fs) < 0) {
+      LOG_ERROR("Failed to deserialize table meta. file name=%s", meta_file_path.c_str());
+      fs.close();
+      return RC::INTERNAL;
+    }
+    fs.close();
+    
+    views_.insert(std::pair<std::string, ViewMeta>(viemeta.get_view_name(),viemeta));
+  }
   return rc;
 }
 
