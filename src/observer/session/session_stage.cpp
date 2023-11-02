@@ -165,3 +165,9 @@ RC SessionStage::handle_sql(SQLStageEvent *sql_event)
 
   return rc;
 }
+
+
+RC  SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
+  RC rc = RC::SUCCESS;
+  
+}

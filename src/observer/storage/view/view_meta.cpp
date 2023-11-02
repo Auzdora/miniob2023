@@ -15,33 +15,8 @@ using namespace std;
 
 static const Json::StaticString FIELD_VIEW_NAME("view_name");
 static const Json::StaticString FIELD_SQL_STRING("sql_string");
-// static const Json::StaticString FIELD_ALIAS("alias");
-// static const Json::StaticString FIELD_REL_NAME("relation_name");
-// static const Json::StaticString FIELD_ATTR_NAME("attribute_name");
+static const Json::StaticString FIELD_RELATE_TABLES("relate_tables");
 
-// static const Json::StaticString FIELD_SELECT_ATTRS("attributes");
-// static const Json::StaticString FIELD_SELECT_ATTR_ALIAS("attribute_alias");
-
-// static const Json::StaticString FIELD_SELECT_RELATIONS("relations");
-
-// static const Json::StaticString FIELD_SELECT_AGGREGATIONS("aggregations");
-// static const Json::StaticString FIELD_AGGR_NAME("aggregation_name");
-
-// static const Json::StaticString FIELD_FROM_CONDITIONS("conditions");
-// static const Json::StaticString FIELD_COMP("comp");
-// static const Json::StaticString FIELD_LEFT_CON_TYPE("left_con_type");
-// static const Json::StaticString FIELD_RIGHT_CON_TYPE("right_con_type");
-
-// static const Json::StaticString FIELD_LEFT_EXPR("right_expr_node");
-// static const Json::StaticString FIELD_RIGHT_EXPR("left_expr_node");
-
-// static const Json::StaticString FIELD_ATTR_TYPE("attr_type");
-// static const Json::StaticString FIELD_LENGTH("length_");
-// static const Json::StaticString FIELD_NUM_VALUE("num_value_");
-// static const Json::StaticString FIELD_STR_VALUE("str_value_");
-
-// static const Json::StaticString FIELD_ORDERBYS("orderbys");
-// static const Json::StaticString FIELD_ORDERBY_TYPE("order_type");
 
 ViewMeta::ViewMeta(const ViewMeta &other)
 {
@@ -61,6 +36,10 @@ RC ViewMeta::init(const char * view_file_path, const char *view_name, SelectSqlN
     view_name_ = view_name;
     view_file_path_ = view_file_path;
     selection_ = selection;
+    for (auto table_name : selection->relations)
+    {
+      relate_tables_.push_back(table_name.relation_name);
+    }
 }
 
 int ViewMeta::serialize(std::ostream &ss) const
@@ -68,7 +47,10 @@ int ViewMeta::serialize(std::ostream &ss) const
     Json::Value view_value_;
     view_value_[FIELD_VIEW_NAME] = view_name_;
     view_value_[FIELD_SQL_STRING] = selection_->select_string;
-
+    for (auto table_name : relate_tables_)
+    {
+      view_value_[FIELD_RELATE_TABLES].append(table_name);
+    }
 
     Json::StreamWriterBuilder builder;
     Json::StreamWriter *writer = builder.newStreamWriter();
@@ -94,6 +76,10 @@ int ViewMeta::deserialize(std::istream &is)
   }
   view_name_ = view_value[FIELD_VIEW_NAME].asString();
   sql_string_ = view_value[FIELD_SQL_STRING].asString();
+  for (auto it : view_value[FIELD_RELATE_TABLES])
+  {
+    relate_tables_.push_back(it.asString());
+  }
   return (int)(is.tellg() - old_pos);
   
 //   const Json::Value &table_id_value = table_value[FIELD_TABLE_ID];

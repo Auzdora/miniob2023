@@ -428,6 +428,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       $$->flag = SCF_CREATE_VIEW;
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
+      create_table.is_view = true;
       free($3);
     }
     | CREATE TABLE ID select_stmt 

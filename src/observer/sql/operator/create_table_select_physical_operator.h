@@ -28,7 +28,8 @@ See the Mulan PSL v2 for more details. */
 class CreateTableSelectPhysicalOperator : public PhysicalOperator
 {
 public:
-  CreateTableSelectPhysicalOperator(Db *db, std::string table_name, const std::vector<std::string> &expr_names, const std::vector<std::string> &star_field_name) : db_(db), table_name_(table_name), expr_names_(expr_names), star_field_names_(star_field_name)
+  CreateTableSelectPhysicalOperator(Db *db, std::string table_name, const std::vector<std::string> &expr_names, const std::vector<std::string> &star_field_name, bool is_view) 
+  : db_(db), table_name_(table_name), expr_names_(expr_names), star_field_names_(star_field_name), is_view_(is_view)
   {}
 
   virtual ~CreateTableSelectPhysicalOperator() = default;
@@ -49,6 +50,7 @@ private:
   std::string table_name_;
   std::vector<std::string> expr_names_;
   std::vector<std::string> star_field_names_;
+  bool is_view_ = false;
   bool first_call_{true};
   Trx *trx_;
 };

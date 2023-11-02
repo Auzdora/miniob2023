@@ -32,12 +32,13 @@ class CreateTableSelectStmt : public Stmt
 {
 public:
   CreateTableSelectStmt(const std::string &table_name, const std::vector<std::string> &field_names, 
-  const std::vector<std::string> &star_field_name, SelectStmt *select_stmt, Db *db)
+  const std::vector<std::string> &star_field_name, SelectStmt *select_stmt, Db *db, bool is_view)
         : table_name_(table_name),
           field_names_(field_names),
           star_field_names_(star_field_name),
           select_stmt_(select_stmt),
-          db_(db)
+          db_(db),
+          is_view_(is_view)
   {
     for (int i = 0; i < field_names.size(); i++) {
       field_names_[i] = extractColumnNameOrAlias(field_names_[i]);
@@ -68,6 +69,7 @@ public:
   const std::vector<std::string> &field_names() const { return field_names_; }
   const std::vector<std::string> &star_field_names() const { return star_field_names_; }
   const std::vector<AttrInfoSqlNode> &attr_infos() const { return attr_infos_; }
+  const bool is_view() const { return is_view_; }
   Db *get_db() { return db_; }
   SelectStmt *select_stmt() const { return select_stmt_; }
 
@@ -79,5 +81,6 @@ private:
   std::vector<std::string> field_names_;
   std::vector<AttrInfoSqlNode> attr_infos_;
   std::vector<std::string> star_field_names_;
+  bool is_view_ = false;
   SelectStmt *select_stmt_;
 };

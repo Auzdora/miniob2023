@@ -51,6 +51,7 @@ public:
 protected:
   std::string view_name_;
   std::string sql_string_;
+  std::vector<std::string> relate_tables_;
   std::string view_file_path_;
   SelectSqlNode * selection_;
 };
