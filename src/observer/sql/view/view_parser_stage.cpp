@@ -44,6 +44,10 @@ RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
       for (auto rel : input_sql_node->selection.relations)
       {
         Table *table = db->find_table(input_sql_node->selection.relations[0].relation_name.c_str());
+        if (table == nullptr)
+        {
+          return RC::SUCCESS;
+        }
         if(table->check_view())
         {
           std::string view_name = table->name();

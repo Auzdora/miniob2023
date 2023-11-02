@@ -133,6 +133,8 @@ RC Db::create_view(const char *view_name, SelectSqlNode & selection){
   }
 
   view.serialize(fs);
+  views_.emplace(view_name,view);
+
   return rc;
 }
 
