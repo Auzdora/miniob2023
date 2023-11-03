@@ -222,6 +222,9 @@ RC SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
     create_view_sql->create_table.use_select = true;
     create_view_sql->create_table.is_view = true;
 
+    auto old_sql_node = sql_event->sql_node().get();
+    auto old_oper = sql_event->physical_operator().get();
+
     parse(view_sql.c_str(), &parsed_sql_result);
     create_view_sql->selection = parsed_sql_result.sql_nodes()[0].get()->selection;
     create_view_sql->create_table.relation_name = viewmeta.get_view_name();

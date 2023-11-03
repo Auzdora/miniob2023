@@ -133,19 +133,36 @@ RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
     {
       bool has_view = false;
       std::string rel_name = input_sql_node->insertion.relation_name;
+      std::string view_name;
       Table *table = db->find_table(rel_name.c_str());
       if (table == nullptr)
       {
-        return RC::SUCCESS;
-      }
-      if(table->check_view())
-      {
-        std::string view_name = table->name();
+        for (auto viewmeta : db->all_view())
+        {
+          if (viewmeta.second.get_view_name() == rel_name)
+          {
+            has_view = true;
+            view_name = rel_name;
+            break;
+          }
+        }
+        if (!has_view)
+          return RC::SUCCESS;
         auto meta = db->get_view(rel_name.c_str());
         view_sql = meta.get_sql_string();
         view_name_ = meta.get_view_name();
         parse(view_sql.c_str(), &parsed_sql_result);
         has_view = true;
+      }else{
+        if (table->check_view())
+        {
+          view_name = table->name();
+          auto meta = db->get_view(rel_name.c_str());
+          view_sql = meta.get_sql_string();
+          view_name_ = meta.get_view_name();
+          parse(view_sql.c_str(), &parsed_sql_result);
+          has_view = true;
+        }
       }
       if (has_view)
       {
