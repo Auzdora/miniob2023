@@ -64,6 +64,7 @@ public:
   }
   void set_sql_node(std::unique_ptr<ParsedSqlNode> sql_node)
   {
+    sql_node_ = nullptr;
     sql_node_ = std::move(sql_node);
   }
   void set_stmt(Stmt *stmt)
@@ -74,11 +75,20 @@ public:
   {
     operator_ = std::move(oper);
   }
+  void set_view_sql_node(SelectSqlNode select_view_sql_node)
+  {
+    select_view_sql_node_ = select_view_sql_node;
+  }
+  SelectSqlNode &get_view_sql_node()
+  {
+    return select_view_sql_node_;
+  }
 
 private:
   SessionEvent *session_event_ = nullptr;
   std::string sql_;  ///< 处理的SQL语句
   std::unique_ptr<ParsedSqlNode> sql_node_;  ///< 语法解析后的SQL命令
+  SelectSqlNode select_view_sql_node_;
   Stmt *stmt_ = nullptr;  ///< Resolver之后生成的数据结构
   std::unique_ptr<PhysicalOperator> operator_; ///< 生成的执行计划，也可能没有
 };

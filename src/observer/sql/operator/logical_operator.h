@@ -45,6 +45,7 @@ enum class LogicalOperatorType
   SORT,       ///< 排序算子
   SUBSELECT,  ///< 子查询中间层
   CREATE_TABLE_SELECT, ///< 复制表
+  VIEW,       ///< 视图
   GROUPBY,    ///< group by 算子
 };
 

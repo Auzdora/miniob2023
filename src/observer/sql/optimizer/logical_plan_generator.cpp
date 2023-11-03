@@ -31,6 +31,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
+#include "sql/operator/view_logical_operator.h"
 
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
@@ -140,7 +141,21 @@ RC LogicalPlanGenerator::create_plan(
       }
     }
 
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, all_aggr_funcs, true/*readonly*/));
+    unique_ptr<LogicalOperator> table_get_oper;
+
+    if (select_stmt->select_view())
+    {
+      unique_ptr<LogicalOperator> view_table_get;
+      if (RC::SUCCESS != create_plan(select_stmt->select_view_stmt(),view_table_get)){
+        return RC::INTERNAL;
+      }
+      table_get_oper.reset(std::move(new ViewLogicalOperator(table,fields)));
+      table_get_oper->add_child(std::move(view_table_get));
+    }
+    else{
+      table_get_oper.reset(std::move(new TableGetLogicalOperator(table, fields, all_aggr_funcs, true/*readonly*/)));
+    }
+
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
     } else {
@@ -161,6 +176,11 @@ RC LogicalPlanGenerator::create_plan(
       }
     }
   }
+
+  // if (select_stmt->select_view())
+  // {
+    
+  // }
 
   unique_ptr<LogicalOperator> predicate_oper;
   RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);

@@ -51,6 +51,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/sort_logical_operator.h"
 #include "sql/operator/sort_physical_operator.h"
 #include "sql/expr/expression.h"
+#include "sql/operator/view_physical_operator.h"
 
 using namespace std;
 
@@ -123,7 +124,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator,
   {
     return create_plan(static_cast<CreateTableSelectLogicalOperator &>(logical_operator), oper);
   } break;
-
+  case LogicalOperatorType::VIEW:
+  {
+    return create_plan(static_cast<ViewLogicalOperator &>(logical_operator),oper);
+  } break;
   default: {
     return RC::INVALID_ARGUMENT;
   }
@@ -498,3 +502,30 @@ RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &group_by_oper, std
   return rc;
 }
 
+RC PhysicalPlanGenerator::create_plan(ViewLogicalOperator &view_operator, std::unique_ptr<PhysicalOperator> &oper){
+
+  ViewPhysicalOperator *view_phy_oper = new ViewPhysicalOperator(view_operator.table(),view_operator.fields());
+ 
+  unique_ptr<PhysicalOperator> child_phy_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!view_operator.children().empty()) {
+    LogicalOperator *child_oper = view_operator.children()[0].get();
+    rc = create(*child_oper, child_phy_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create project logical operator's child physical "
+               "operator. rc=%s",
+               strrc(rc));
+      return rc;
+    }
+  }
+
+  if (child_phy_oper) {
+    view_phy_oper->add_child(std::move(child_phy_oper));
+  }
+
+  oper = unique_ptr<PhysicalOperator>(view_phy_oper);
+
+  LOG_TRACE("create a project physical operator");
+  return rc;
+}

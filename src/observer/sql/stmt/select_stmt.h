@@ -99,6 +99,16 @@ public:
     return start_field_names_;
   }
 
+  const bool select_view() const
+  {
+    return select_view_;
+  }
+
+  SelectStmt *select_view_stmt()
+  {
+    return select_view_sql_stmt;
+  }
+
 private:
   std::vector<Field> sort_fields_;
   std::vector<OrderType> sort_types_;
@@ -114,4 +124,6 @@ private:
   std::vector<std::string> query_expressions_names_;
   std::vector<std::string> start_field_names_; // 为create table select 创建，特殊情况
   std::vector<std::string> original_col_names_; // 为create table select 创建，处理名字的情况
+  bool select_view_ = false;
+  SelectStmt *select_view_sql_stmt;
 };

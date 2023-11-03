@@ -409,6 +409,13 @@ public:
   {
     cells_ = cells;
   }
+  void clear(){
+    cells_.clear();
+  }
+  void add_cell(Value &cell)
+  {
+    cells_.push_back(cell);
+  }
 
   virtual int cell_num() const override
   {
@@ -498,4 +505,152 @@ public:
 private:
   Tuple *left_ = nullptr;
   Tuple *right_ = nullptr;
+};
+
+
+/**
+ * @brief view 元组
+ * @ingroup Tuple
+ * @details view reocrd
+ */
+class ViewTuple : public Tuple 
+{
+public:
+ ViewTuple() = default;
+  virtual ~ViewTuple()
+  {
+    for (FieldExpr *spec : speces_) {
+      delete spec;     // TODO 释放到第二个出的问题
+    }
+    speces_.clear();
+  }
+  void clear(){
+    value_list_.clear();
+  }
+  void set_valuelist(ValueListTuple &value_list)
+  {
+    value_list_ = value_list;
+  }
+
+  void set_valuelist(Tuple * tuple)
+  {
+    for (int i = 0; i < tuple->cell_num(); i++)
+    {
+      Value cell;
+      tuple->cell_at(i,cell);
+      value_list_.add_cell(cell);
+    }
+  }
+
+  // bool isNull(int i) const{
+  //   if (!nullable_table_.data()){
+  //     LOG_WARN("nullable table is not init!");
+  //     return true;
+  //   }
+  //   return nullable_table_.get_bit(i);
+  // }
+
+  // char *get_nullable_addr() const{
+  //   for(auto fieldmeta:*(table_->table_meta().field_metas()))
+  //   {
+  //     if (0 == strcmp(fieldmeta.name(),NULLABLE_TABLE_STRING))
+  //     {
+  //       return record_->data() + fieldmeta.offset();
+  //     }
+  //   }
+  //   return nullptr;
+  // }
+
+  void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
+  {
+    table_ = table;
+    this->speces_.reserve(fields->size());
+    for (const FieldMeta &field : *fields) {
+      speces_.push_back(new FieldExpr(table, &field));
+    }
+  }
+
+  void set_schema(const Table *table, const std::vector<FieldMeta> *fields,int idx){
+    table_ = table;
+    this->speces_.reserve(fields->size() - idx);
+    for (int i = idx; i < fields->size(); i++){
+      speces_.push_back(new FieldExpr(table, &(*fields)[i]));
+    }
+  }
+
+  int cell_num() const override
+  {
+    return speces_.size();
+  }
+
+  RC cell_at(int index, Value &cell) const override
+  {
+    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    RC rc = value_list_.cell_at(index,cell);
+    if (rc != RC::SUCCESS)
+    {
+      return RC::INTERNAL;
+    }
+    // if (field_meta->nullable())
+    // {
+    //   if (isNull(index))
+    //   {
+    //     cell.set_type(OBNULL);
+    //     return RC::SUCCESS;
+    //   }
+    // }else if (isNull(index)){
+    //   LOG_WARN("this should never happen!");
+    //   return RC::INTERNAL;
+    // }
+
+  //   cell.set_type(field_meta->type());
+  //  // 字段为text 字段
+  //   if (field_meta->type() == TEXTS)
+  //   {
+  //     cell.set_data(this->record_->get_texts_data(),this->record_->get_text_len());
+  //   }else{
+  //     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+  //   }
+
+    return RC::SUCCESS;
+  }
+
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  {
+    const char *table_name = spec.table_name();
+    const char *field_name = spec.field_name();
+    if (0 != strcmp(table_name, table_->name())) {
+      return RC::NOTFOUND;
+    }
+
+    for (size_t i = 0; i < speces_.size(); ++i) {
+      const FieldExpr *field_expr = speces_[i];
+      const Field &field = field_expr->field();
+      if (0 == strcmp(field_name, field.field_name())) {
+        return cell_at(i, cell);
+      }
+    }
+    return RC::NOTFOUND;
+  }
+
+#if 0
+  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
+  {
+    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
+    spec = speces_[index];
+    return RC::SUCCESS;
+  }
+#endif
+private:
+  ValueListTuple value_list_;
+  const Table *table_ = nullptr;
+  std::vector<FieldExpr *> speces_;
+  common::Bitmap nullable_table_;
 };

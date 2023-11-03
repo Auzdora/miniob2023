@@ -107,9 +107,9 @@ void SessionStage::handle_request(StageEvent *event)
   Communicator *communicator = sev->get_communicator();
   bool need_disconnect = false;
   RC rc = communicator->write_result(sev, need_disconnect);
-  if (sql_event.sql_node() != nullptr) {
-    RC rc2 = handle_update_view_table(&sql_event);
-  }
+  // if (sql_event.sql_node() != nullptr) {
+  //   RC rc2 = handle_update_view_table(&sql_event);
+  // }
   LOG_INFO("write result return %s", strrc(rc));
   if (need_disconnect) {
     Server::close_connection(communicator);
@@ -221,9 +221,6 @@ RC SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
     std::string view_sql = viewmeta.get_sql_string();
     create_view_sql->create_table.use_select = true;
     create_view_sql->create_table.is_view = true;
-
-    auto old_sql_node = sql_event->sql_node().get();
-    auto old_oper = sql_event->physical_operator().get();
 
     parse(view_sql.c_str(), &parsed_sql_result);
     create_view_sql->selection = parsed_sql_result.sql_nodes()[0].get()->selection;
