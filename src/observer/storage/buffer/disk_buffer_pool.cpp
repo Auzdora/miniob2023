@@ -104,7 +104,7 @@ int BPFrameManager::purge_frames(int count, std::function<RC(Frame *frame)> purg
 Frame *BPFrameManager::get(int file_desc, PageNum page_num)
 {
   FrameId frame_id(file_desc, page_num);
-  std::lock_guard<std::mutex> lock_guard(lock_);
+  // std::lock_guard<std::mutex> lock_guard(lock_);
   return get_internal(frame_id);
 }
 
