@@ -304,12 +304,14 @@ RC DiskBufferPool::get_this_page(PageNum page_num, Frame **frame)
     return RC::SUCCESS;
   }
 
-  std::scoped_lock lock_guard(lock_); // 直接加了一把大锁，其实可以根据访问的页面来细化提高并行度
+  //std::scoped_lock lock_guard(lock_); // 直接加了一把大锁，其实可以根据访问的页面来细化提高并行度
+  lock_.lock();
 
   // Allocate one page and load the data into this page
   Frame *allocated_frame = nullptr;
   rc = allocate_frame(page_num, &allocated_frame);
   if (rc != RC::SUCCESS) {
+    lock_.unlock();
     LOG_ERROR("Failed to alloc frame %s:%d, due to failed to alloc page.", file_name_.c_str(), page_num);
     return rc;
   }
@@ -319,12 +321,14 @@ RC DiskBufferPool::get_this_page(PageNum page_num, Frame **frame)
   allocated_frame->access();
 
   if ((rc = load_page(page_num, allocated_frame)) != RC::SUCCESS) {
+    lock_.unlock();
     LOG_ERROR("Failed to load page %s:%d", file_name_.c_str(), page_num);
     purge_frame(page_num, allocated_frame);
     return rc;
   }
 
   *frame = allocated_frame;
+  lock_.unlock();
   return RC::SUCCESS;
 }
 
