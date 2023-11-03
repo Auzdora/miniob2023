@@ -28,6 +28,7 @@ See the Mulan PSL v2 for more details. */
 #include "net/communicator.h"
 #include "session/session.h"
 #include "event/sql_debug.h"
+#include "sql/parser/parse_defs.h"
 
 using namespace common;
 
@@ -216,7 +217,7 @@ RC SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
   if (is_in)
   {
     db->drop_table(viewmeta.get_view_name().c_str());
-    std::unique_ptr<ParsedSqlNode> create_view_sql = std::unique_ptr<ParsedSqlNode>(new ParsedSqlNode(SCF_CREATE_TABLE_SELECT));
+    std::unique_ptr<ParsedSqlNode> create_view_sql = std::unique_ptr<ParsedSqlNode>(new ParsedSqlNode(SCF_CREATE_VIEW));
     ParsedSqlResult parsed_sql_result;
     std::string view_sql = viewmeta.get_sql_string();
     create_view_sql->create_table.use_select = true;
@@ -227,6 +228,12 @@ RC SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
     create_view_sql->create_table.relation_name = viewmeta.get_view_name();
 
     sql_event->set_sql_node(std::move(create_view_sql));
+
+    rc = view_parse_stage_.handle_request(sql_event);
+    if (OB_FAIL(rc)) {
+      LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
+      return rc;
+    }
     
     rc = resolve_stage_.handle_request(sql_event);
     if (OB_FAIL(rc)) {

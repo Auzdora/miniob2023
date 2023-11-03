@@ -119,8 +119,10 @@ RC Db::create_view(const char *view_name, SelectSqlNode & selection){
   int fd = ::open(view_file_path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
   if (fd < 0) {
     if (EEXIST == errno) {
+      close(fd);
       return RC::SCHEMA_TABLE_EXIST;
     }
+    close(fd);
     return RC::IOERR_OPEN;
   }
 
