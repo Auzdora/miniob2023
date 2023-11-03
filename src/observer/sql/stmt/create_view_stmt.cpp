@@ -79,7 +79,12 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
         }else{
           // 说明是表达式
           AttrInfoSqlNode info;
-          Table* table = db->find_table(exprnode.attributes[0].relation_name.c_str());
+          std::string table_name;
+          if (exprnode.attributes[0].relation_name != "")
+            table_name = exprnode.attributes[0].relation_name;
+          else
+            table_name =  selectSqlNode.relations[0].relation_name;
+          Table* table = db->find_table(table_name.c_str());
           info.name = exprnode.expression->name();
           const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
           info.type = field.type();
@@ -89,7 +94,12 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
         }
       }else{
           AttrInfoSqlNode info;
-          Table* table = db->find_table(exprnode.attributes[0].relation_name.c_str());
+          std::string table_name;
+          if (exprnode.attributes[0].relation_name != "")
+            table_name = exprnode.attributes[0].relation_name;
+          else
+            table_name =  selectSqlNode.relations[0].relation_name;
+          Table* table = db->find_table(table_name.c_str());
           info.name = exprnode.expression->name();
           const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
           info.type = field.type();

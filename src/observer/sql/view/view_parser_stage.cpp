@@ -42,6 +42,10 @@ RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
   case SCF_SELECT:
     {
       bool has_view = false;
+      if (input_sql_node->selection.relations.empty())
+      {
+        return RC::SUCCESS;
+      }
       std::string rel_name = input_sql_node->selection.relations[0].relation_name;
       std::string view_name;
       Table *table = db->find_table(rel_name.c_str());
@@ -229,53 +233,6 @@ RC ViewParseStage::rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode
   {
   case SCF_SELECT:
     {
-
-      
-      // auto &input_selection = input_sql_node.selection;
-      // auto &view_selection = view_sql_node.selection;
-      // input_selection.select_view = true;
-      // input_selection.select_view_sql_node = &view_selection;
-      // return RC::SUCCESS;
-      // view_selection.aggregations.insert(view_selection.aggregations.end(),input_selection.aggregations.begin(),input_selection.aggregations.end());
-      // for (auto &rel : input_selection.relations)
-      // {
-      //   if (rel.relation_name == view_name_)
-      //   {
-      //     continue;
-      //   }
-      //   view_selection.relations.push_back(rel);
-      // }
-
-      // for (auto &attr : input_selection.attributes)
-      // {
-      //   for (auto &vattr : view_selection.attributes)
-      //   {
-      //     if (attr.attribute_name == "*")
-      //     {
-      //       attr.relation_name = "";
-      //     }
-      //     else if (attr.attribute_name == vattr.attribute_alias || attr.attribute_name == vattr.attribute_name)
-      //     {
-      //       attr.attribute_name = vattr.attribute_name;
-      //       attr.relation_name = vattr.relation_name;
-      //       attr.attribute_alias = vattr.attribute_alias;
-      //     }
-      //   }
-      // }
-      // view_selection.attributes.swap(input_selection.attributes);
-
-      // view_selection.conditions.insert(view_selection.conditions.end(),input_selection.conditions.begin(),input_selection.conditions.end());
-      
-      // for (int i = 0; i < view_selection.expressions.size(); i++)
-      // {
-      //   switch (view_selection.expressions[i].expression->type())
-      //   {
-      //   default:
-      //     break;
-      //   }
-      // }
-      // view_selection.expressions.swap(input_selection.expressions);
-
       return RC::SUCCESS;
     } 
     break;

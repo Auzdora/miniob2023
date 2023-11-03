@@ -396,6 +396,13 @@ drop_index_stmt:      /*drop index 语句的语法解析树*/
       free($5);
     }
     ;
+ids:
+  ID{
+
+  }
+  |ID COMMA ids{
+
+  };
 create_table_stmt:    /*create table 语句的语法解析树*/
     CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE
     {
@@ -437,6 +444,18 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       $$->flag = SCF_CREATE_TABLE_SELECT;
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
+      free($3);
+      create_table.use_select = true;
+    }
+    |
+     CREATE VIEW ID LBRACE ids RBRACE AS select_stmt
+    {
+      $$ = $8;
+      std::reverse($$->selection.expressions.begin(),$$->selection.expressions.end());
+      $$->flag = SCF_CREATE_VIEW;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      create_table.is_view = true;
       free($3);
       create_table.use_select = true;
     }
