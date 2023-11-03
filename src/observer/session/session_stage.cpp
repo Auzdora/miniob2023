@@ -108,9 +108,9 @@ void SessionStage::handle_request(StageEvent *event)
   Communicator *communicator = sev->get_communicator();
   bool need_disconnect = false;
   RC rc = communicator->write_result(sev, need_disconnect);
-  if (sql_event.sql_node() != nullptr) {
-    RC rc2 = handle_update_view_table(&sql_event);
-  }
+  // if (sql_event.sql_node() != nullptr) {
+  //   RC rc2 = handle_update_view_table(&sql_event);
+  // }
   LOG_INFO("write result return %s", strrc(rc));
   if (need_disconnect) {
     Server::close_connection(communicator);
@@ -234,7 +234,7 @@ RC SessionStage::handle_update_view_table(SQLStageEvent * sql_event){
       LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
       return rc;
     }
-    
+
     rc = resolve_stage_.handle_request(sql_event);
     if (OB_FAIL(rc)) {
       LOG_TRACE("failed to do resolve. rc=%s", strrc(rc));
