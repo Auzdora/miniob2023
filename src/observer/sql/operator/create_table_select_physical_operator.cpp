@@ -79,8 +79,11 @@ RC CreateTableSelectPhysicalOperator::next()
       }
 
       rc = db_->create_table(table_name, expr_names_.size(), attr_infos.data(),is_view_);
-      if (rc != RC::SUCCESS) {
+      if (rc != RC::SUCCESS && rc != RC::SCHEMA_TABLE_EXIST) {
         LOG_WARN("create table select failed during create table");
+        return rc;
+      }
+      if (rc == RC::SCHEMA_TABLE_EXIST && !is_view_) {
         return rc;
       }
       new_table = db_->find_table(table_name);
