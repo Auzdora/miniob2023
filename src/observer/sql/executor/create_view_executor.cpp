@@ -27,7 +27,7 @@ RC CreateViewExecutor::execute(SQLStageEvent *sql_event)
   const int attribute_count = static_cast<int>(create_view_stmt->attr_infos().size());
 
   const char *table_name = create_view_stmt->table_name().c_str();
-  //RC rc = session->get_current_db()->create_table(table_name, attribute_count, create_view_stmt->attr_infos().data(),true);
+  rc = session->get_current_db()->create_table(table_name, attribute_count, create_view_stmt->attr_infos().data(),true);
   rc = session->get_current_db()->create_view(table_name,create_view_stmt->get_select_sql_node());
 
   return rc;
