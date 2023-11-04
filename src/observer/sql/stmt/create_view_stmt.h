@@ -43,6 +43,7 @@ public:
 
   static std::string get_rel_name(std::unordered_map<std::string,std::string> alias_to_rel,std::string alia);
   static std::string find_relation(std::vector<RelSqlNode> relations,std::string relation_name);
+  static std::string extractColumnNameOrAlias(const std::string& input);
   static RC create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt, SelectSqlNode &selectSqlNode);
 
 private:

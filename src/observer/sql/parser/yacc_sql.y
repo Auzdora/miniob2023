@@ -98,7 +98,7 @@ int aggr_start_offset = 0; // for group by and aggr
         SET
         ON
         LOAD
-        DATA
+        /* DATA */
         INFILE
         EXPLAIN
         EQ
@@ -1763,7 +1763,8 @@ comp_op:
     ;
 
 load_data_stmt:
-    LOAD DATA INFILE SSS INTO TABLE ID 
+{}
+    /* LOAD DATA INFILE SSS INTO TABLE ID 
     {
       char *tmp_file_name = common::substr($4, 1, strlen($4) - 2);
       
@@ -1773,7 +1774,7 @@ load_data_stmt:
       free($7);
       free(tmp_file_name);
     }
-    ;
+    ; */
 
 explain_stmt:
     EXPLAIN command_wrapper

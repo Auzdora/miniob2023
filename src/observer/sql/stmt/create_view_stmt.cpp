@@ -101,7 +101,7 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
           else
             table_name =  selectSqlNode.relations[0].relation_name;
           Table* table = db->find_table(table_name.c_str());
-          info.name = exprnode.expression->name();
+          info.name = extractColumnNameOrAlias(exprnode.expression->name());
           const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
           info.type = field.type();
           info.length = field.len();
@@ -128,7 +128,7 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
           else
             table_name =  selectSqlNode.relations[0].relation_name;  // 单表的情况 直接从relation中获取
           Table* table = db->find_table(table_name.c_str());
-          info.name = exprnode.expression->name();
+          info.name = extractColumnNameOrAlias(exprnode.expression->name());
           const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
           info.type = field.type();
           info.length = field.len();
@@ -219,3 +219,20 @@ std::string CreateViewStmt::find_relation(std::vector<RelSqlNode> relations,std:
   }
   return std::string("");
 }
+
+std::string CreateViewStmt::extractColumnNameOrAlias(const std::string& input) {
+      // Check if there's an "as" keyword to define an alias
+      auto asPos = input.rfind(" as ");
+      if (asPos != std::string::npos) {
+          return input.substr(asPos + 4); // Return the alias
+      }
+
+      // If there's no alias, check for a table alias (e.g., "t.id")
+      // auto dotPos = input.rfind(".");
+      // if (dotPos != std::string::npos) {
+      //     return input.substr(dotPos + 1); // Return the column name
+      // }
+
+      // If there's no table or alias, return the input as-is
+      return input;
+  }
