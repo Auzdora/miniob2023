@@ -84,7 +84,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
         } else {
           // 如果有在插入时指定字短
           for (int k = 0; k < inserts.view_string.size(); k++) {
-            if (0 == strcmp(inserts.view_string[i].c_str(),(*table_meta.field_metas())[i + stat_idx].name())) {
+            if (0 == strcmp(inserts.view_string[k].c_str(),(*table_meta.field_metas())[i + stat_idx].name())) {
               is_in = true;
               break;
             }
