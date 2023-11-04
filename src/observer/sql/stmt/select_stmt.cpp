@@ -337,7 +337,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
       filter_stmt, select_sql.rel_alias);
-  filter_stmt->set_same_table(same_table);
+  if (filter_stmt != nullptr) {
+    filter_stmt->set_same_table(same_table);
+  }
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
