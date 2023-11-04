@@ -237,7 +237,7 @@ RC ComparisonExpr::get_value_same_table(const Tuple &tuple, Value &value) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-ConjunctionExpr::ConjunctionExpr(Type type,
+ConjunctionExpr::ConjunctionExpr(ConjunctionExpr::Type type,
                                  vector<unique_ptr<Expression>> &children)
     : conjunction_type_(type), children_(std::move(children)) {}
 
@@ -256,14 +256,14 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const {
       return rc;
     }
     bool bool_value = tmp_value.get_boolean();
-    if ((conjunction_type_ == Type::AND && !bool_value) ||
-        (conjunction_type_ == Type::OR && bool_value)) {
+    if ((conjunction_type_ == ConjunctionExpr::Type::AND && !bool_value) ||
+        (conjunction_type_ == ConjunctionExpr::Type::OR && bool_value)) {
       value.set_boolean(bool_value);
       return rc;
     }
   }
 
-  bool default_value = (conjunction_type_ == Type::AND);
+  bool default_value = (conjunction_type_ == ConjunctionExpr::Type::AND);
   value.set_boolean(default_value);
   return rc;
 }

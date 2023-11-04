@@ -100,8 +100,9 @@ RC PredicatePhysicalOperator::next()
           {
             ConjunctionExpr * top = static_cast<ConjunctionExpr *>(expression_.get());
             std::vector<std::unique_ptr<Expression>> &children = top->children();
+            bool or_true = false;
             for(int i = 0; i < children.size();i++){
-              if (conjunct_result == false) {
+              if (conjunct_result == false || or_true == true) {
                 break;
               }
               switch (children[i]->type())
@@ -114,8 +115,15 @@ RC PredicatePhysicalOperator::next()
                   return rc;
                 }
                 
-                if (!value.get_boolean()) {
+                if (!value.get_boolean() && top->conjunction_type() == ConjunctionExpr::Type::AND) {
                   conjunct_result = false;
+                  clear_global_tuple();
+                  break;
+                }
+
+                if (value.get_boolean() && top->conjunction_type() == ConjunctionExpr::Type::OR) {
+                  or_true = true;
+                  conjunct_result = true;
                   clear_global_tuple();
                   break;
                 }
@@ -125,6 +133,10 @@ RC PredicatePhysicalOperator::next()
                 return RC::INTERNAL;
               } break;
               }
+            }
+            if (or_true == false && top->conjunction_type() == ConjunctionExpr::Type::OR)
+            {
+              conjunct_result = false;
             }
           } break;
         default:

@@ -126,6 +126,10 @@ public:
     same_table_ = same_table;
   }
 
+  void set_or_flag() { or_flag_ = true; };
+
+  const bool get_or_flag() { return or_flag_; }
+
   const bool get_same_table() {
     return same_table_;
   }
@@ -147,4 +151,5 @@ private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
   std::unordered_map<std::string, std::string> rel_alias_;
   bool same_table_{false};
+  bool or_flag_ = false;
 };

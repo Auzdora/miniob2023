@@ -95,6 +95,7 @@ int aggr_start_offset = 0; // for group by and aggr
         FROM
         WHERE
         AND
+        OR
         SET
         ON
         LOAD
@@ -1614,6 +1615,12 @@ condition_list:
     }
     | condition AND condition_list {
       $$ = $3;
+      $$->emplace_back(*$1);
+      delete $1;
+    }
+    | condition OR condition_list {
+      $$ = $3;
+      $1->conjunct_expr_type = true;
       $$->emplace_back(*$1);
       delete $1;
     }

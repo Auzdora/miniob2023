@@ -362,10 +362,18 @@ RC LogicalPlanGenerator::create_plan(
 
   unique_ptr<PredicateLogicalOperator> predicate_oper;
   if (!cmp_exprs.empty()) {
-    unique_ptr<ConjunctionExpr> conjunction_expr(
-        new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
-    predicate_oper = unique_ptr<PredicateLogicalOperator>(
+    if (filter_stmt->get_or_flag())
+    {
+      unique_ptr<ConjunctionExpr> conjunction_expr(
+        new ConjunctionExpr(ConjunctionExpr::Type::OR, cmp_exprs));
+      predicate_oper = unique_ptr<PredicateLogicalOperator>(
         new PredicateLogicalOperator(std::move(conjunction_expr)));
+    } else{
+      unique_ptr<ConjunctionExpr> conjunction_expr(
+        new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+      predicate_oper = unique_ptr<PredicateLogicalOperator>(
+        new PredicateLogicalOperator(std::move(conjunction_expr)));
+    }
   }
   predicate_oper->set_subselect_expr_name(subselect_expr_names);
   if (predicate_oper != nullptr) {

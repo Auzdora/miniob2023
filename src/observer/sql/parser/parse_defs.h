@@ -150,6 +150,7 @@ struct ConditionSqlNode {
   RelAttrSqlNode right_attr; ///< right-hand side attribute if right_is_attr =
                              ///< TRUE 右边的属性
   Value right_value;         ///< right-hand side value if right_is_attr = FALSE
+  bool conjunct_expr_type = false;
   ExprSqlNode left_expr_node;
   ExprSqlNode right_expr_node;
   ConditionType left_con_type;

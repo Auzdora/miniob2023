@@ -34,7 +34,6 @@ RC FilterStmt::create(Db *db, Table *default_table,
                       FilterStmt *&stmt, const std::unordered_map<std::string, std::string> &rel_alias) {
   RC rc = RC::SUCCESS;
   stmt = nullptr;
-
   FilterStmt *tmp_stmt = new FilterStmt();
   for (int i = 0; i < condition_num; i++) {
     FilterUnit *filter_unit = nullptr;
@@ -45,6 +44,8 @@ RC FilterStmt::create(Db *db, Table *default_table,
       LOG_WARN("failed to create filter unit. condition index=%d", i);
       return rc;
     }
+    if (conditions[i].conjunct_expr_type)
+      tmp_stmt->set_or_flag();
     tmp_stmt->filter_units_.push_back(filter_unit);
   }
 
