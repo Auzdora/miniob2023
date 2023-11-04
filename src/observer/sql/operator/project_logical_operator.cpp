@@ -14,12 +14,13 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/project_logical_operator.h"
 
-ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields) : fields_(fields)
+ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields, bool same_table_join) : fields_(fields), same_table_join_(same_table_join)
 {}
 
-ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields, const std::vector<Expression *> &exprs) : fields_(fields)
+ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields, const std::vector<Expression *> &exprs, bool same_table_join) : fields_(fields)
 {
   for (Expression* expr : exprs) {
     expressions_.emplace_back(expr);
   }
+  same_table_join_ = same_table_join;
 }

@@ -116,6 +116,9 @@ RC ProjectPhysicalOperator::close()
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
   if (expressions_.empty()) {
+    if (same_table_join_) {
+      return children_[0]->current_tuple();
+    }
     tuple_.set_tuple(children_[0]->current_tuple());
     return &tuple_;
   }

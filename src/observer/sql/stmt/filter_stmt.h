@@ -122,6 +122,14 @@ public:
     return rel_alias_;
   }
 
+  void set_same_table(bool same_table) {
+    same_table_ = same_table;
+  }
+
+  const bool get_same_table() {
+    return same_table_;
+  }
+
 public:
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt, const std::unordered_map<std::string, std::string> &rel_alias);
@@ -138,4 +146,5 @@ public:
 private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
   std::unordered_map<std::string, std::string> rel_alias_;
+  bool same_table_{false};
 };

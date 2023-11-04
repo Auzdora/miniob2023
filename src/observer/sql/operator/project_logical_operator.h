@@ -29,8 +29,8 @@ See the Mulan PSL v2 for more details. */
 class ProjectLogicalOperator : public LogicalOperator 
 {
 public:
-  ProjectLogicalOperator(const std::vector<Field> &fields);
-  ProjectLogicalOperator(const std::vector<Field> &fields, const std::vector<Expression *> &exprs) ;
+  ProjectLogicalOperator(const std::vector<Field> &fields, bool same_table_join = false);
+  ProjectLogicalOperator(const std::vector<Field> &fields, const std::vector<Expression *> &exprs, bool same_table_join = false) ;
   virtual ~ProjectLogicalOperator() = default;
 
   LogicalOperatorType type() const override
@@ -50,6 +50,7 @@ public:
   {
     return fields_;
   }
+  const bool get_same_table_join() { return same_table_join_; }
 
 private:
   //! 投影映射的字段名称
@@ -57,4 +58,5 @@ private:
   //! 或者是执行某个函数。所以这里应该是表达式Expression。
   //! 不过现在简单处理，就使用字段来描述
   std::vector<Field> fields_;
+  bool same_table_join_{false};
 };

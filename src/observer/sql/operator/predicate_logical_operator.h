@@ -39,6 +39,13 @@ public:
     return subselect_expr_names_;
   }
 
+  void set_same_table(bool same_table) { same_table_ = same_table; }
+
+  const bool get_same_table() {
+    return same_table_;
+  }
+
 private:
   std::vector<std::string> subselect_expr_names_;
+  bool same_table_;
 };

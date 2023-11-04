@@ -181,6 +181,7 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
   RC get_values(const Tuple &tuple, std::vector<Value> &values) const;
+  RC get_value_same_table(const Tuple &tuple, Value &value);
   const std::vector<std::string> &names() { return field_names_; }
 
 private:
@@ -268,6 +269,8 @@ public:
   ExprType type() const override { return ExprType::COMPARISON; }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
+  
+  RC get_value_same_table(const Tuple &tuple, Value &value);
 
   AttrType value_type() const override { return BOOLEANS; }
 

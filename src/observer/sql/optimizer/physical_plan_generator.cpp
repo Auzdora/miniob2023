@@ -228,7 +228,7 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper,
 
   unique_ptr<Expression> expression = std::move(expressions.front());
   oper = unique_ptr<PhysicalOperator>(
-      new PredicatePhysicalOperator(std::move(expression),pred_oper.get_subselect_expr_names()));
+      new PredicatePhysicalOperator(std::move(expression),pred_oper.get_subselect_expr_names(), pred_oper.get_same_table()));
   oper->add_child(std::move(child_phy_oper));
   for (int i = 0; i < children_opers.size() - 1; i++){
     unique_ptr<PhysicalOperator> subchild_oper;
@@ -263,6 +263,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper,
 
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
   const vector<Field> &project_fields = project_oper.fields();
+  project_operator->set_same_table_join(project_oper.get_same_table_join());
   for (const Field &field : project_fields) {
     project_operator->add_projection(field.table(), field.meta());
   }

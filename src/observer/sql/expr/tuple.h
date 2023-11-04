@@ -169,6 +169,10 @@ public:
     return nullable_table_.get_bit(i);
   }
 
+  void clear_specs() {
+    speces_.clear();
+  }
+
   char *get_nullable_addr() const{
     for(auto fieldmeta:*(table_->table_meta().field_metas()))
     {
@@ -467,6 +471,10 @@ public:
     return left_;
   }
 
+  Tuple * get_left() const {
+    return left_;
+  }
+
   Tuple * get_right(){
     return right_;
   }
@@ -479,7 +487,7 @@ public:
   RC cell_at(int index, Value &value) const override
   {
     const int left_cell_num = left_->cell_num();
-    if (index > 0 && index < left_cell_num) {
+    if (index >= 0 && index < left_cell_num) {
       return left_->cell_at(index, value);
     }
 
@@ -499,6 +507,10 @@ public:
       }
     }
 
+    return right_->find_cell(spec, value);
+  }
+
+  RC find_cell_right(const TupleCellSpec &spec, Value &value) const {
     return right_->find_cell(spec, value);
   }
 

@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
 #include "sql/expr/tuple.h"
+#include "sql/expr/tuple_cell.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include <cmath>
@@ -43,6 +44,14 @@ RC FieldExpr::get_values(const Tuple &tuple, std::vector<Value> &values) const {
   }
   values = vals;
   return RC::SUCCESS;
+}
+
+RC FieldExpr::get_value_same_table(const Tuple &tuple, Value &value) {
+  RC rc = tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  if (field_.meta() != nullptr) {
+    value.set_nullable(field_.meta()->nullable());
+  }
+  return rc;
 }
 
 
@@ -187,6 +196,33 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const {
   }
 
   rc = right_->get_value(tuple, right_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  bool bool_value = false;
+  rc = compare_value(left_value, right_value, bool_value);
+  if (rc == RC::SUCCESS) {
+    value.set_boolean(bool_value);
+  }
+  return rc;
+}
+
+RC ComparisonExpr::get_value_same_table(const Tuple &tuple, Value &value) {
+  Value left_value;
+  Value right_value;
+
+  RC rc = left_->get_value(tuple, left_value);
+  FieldExpr *left_field_expr = static_cast<FieldExpr *>(left_.get());
+  const JoinedTuple *join_tuple = static_cast<const JoinedTuple *>(&tuple);
+  JoinedTuple *final = static_cast<JoinedTuple *>(join_tuple->get_left());
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  rc = final->find_cell_right(TupleCellSpec(left_field_expr->table_name(), left_field_expr->field_name()), right_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
     return rc;

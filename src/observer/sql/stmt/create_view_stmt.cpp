@@ -146,6 +146,7 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
       if (exprnode.aggregations.size() == 1)
       {
         AttrInfoSqlNode info;
+        info.is_virtual = true;
         if (exprnode.aggregations[0].alias != "")
         {
           info.name = exprnode.aggregations[0].alias;
@@ -190,10 +191,12 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
       }
       else{
         AttrInfoSqlNode info;
-        info.name = exprnode.expression->name();
+        info.is_virtual = true;
+        info.name = extractColumnNameOrAlias(exprnode.expression->name());
         info.length = sizeof(float);
         info.nullable = true;
         info.type = FLOATS;
+        infos.push_back(info);
       }
     }
   }

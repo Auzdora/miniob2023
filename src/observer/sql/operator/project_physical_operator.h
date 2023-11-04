@@ -34,6 +34,7 @@ public:
   {
     expressions_ = std::move(expressions);
   }
+  void set_same_table_join(bool same_table_join) { same_table_join_ = same_table_join; }
   void add_projection(const Table *table, const FieldMeta *field);
 
   PhysicalOperatorType type() const override
@@ -57,4 +58,5 @@ private:
   bool first_call_{true};
   ProjectTuple tuple_;
   ValueListTuple val_tuple_;
+  bool same_table_join_{false};
 };

@@ -27,8 +27,8 @@ class FilterStmt;
 class PredicatePhysicalOperator : public PhysicalOperator
 {
 public:
-  PredicatePhysicalOperator(std::unique_ptr<Expression> expr);
-  PredicatePhysicalOperator(std::unique_ptr<Expression> expr,std::vector<std::string> subselect_expr_names);
+  PredicatePhysicalOperator(std::unique_ptr<Expression> expr, bool same_table = false);
+  PredicatePhysicalOperator(std::unique_ptr<Expression> expr,std::vector<std::string> subselect_expr_names, bool same_table = false);
   virtual ~PredicatePhysicalOperator() = default;
 
   PhysicalOperatorType type() const override
@@ -49,4 +49,5 @@ private:
   std::unique_ptr<Expression> expression_;
   std::vector<std::string>    subselect_expr_names_;
   Trx *trx_;
+  bool same_table_{false};
 };

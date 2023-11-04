@@ -14,18 +14,19 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "common/globals.h"
+#include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/operator/predicate_physical_operator.h"
 #include "storage/record/record.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/field/field.h"
 
-PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr) : expression_(std::move(expr))
+PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr, bool same_table) : expression_(std::move(expr)), same_table_(same_table)
 {
   ASSERT(expression_->value_type() == BOOLEANS, "predicate's expression should be BOOLEAN type");
 }
 
-PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr,std::vector<std::string> subselect_expr_names){
+PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr,std::vector<std::string> subselect_expr_names, bool same_table): same_table_(same_table){
   expression_ = std::move(expr);
   ASSERT(expression_->value_type() == BOOLEANS, "predicate's expression should be BOOLEAN type");
   if (!subselect_expr_names.empty())
@@ -140,7 +141,12 @@ RC PredicatePhysicalOperator::next()
       } else {
         top_tuple->set_left(tuple);
       }
-      rc = expression_->get_value(*top_tuple, value);
+      if (same_table_) {
+        ComparisonExpr *com_expr = static_cast<ComparisonExpr *>(expression_.get());
+        com_expr->get_value_same_table(*top_tuple, value);
+      } else {
+        rc = expression_->get_value(*top_tuple, value);
+      }
       top_tuple->set_left(nullptr);
     }
     if (rc != RC::SUCCESS) {

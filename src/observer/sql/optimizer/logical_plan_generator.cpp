@@ -198,10 +198,21 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   unique_ptr<LogicalOperator> project_oper;
+  bool same_table_join = false;
   if (contain_expression && all_aggr_funcs.empty()) {
-    project_oper = std::make_unique<ProjectLogicalOperator>(all_fields, all_expressions);
+    if (select_stmt->tables().size() == 2) {
+      if (select_stmt->tables()[0]->table_meta().name() == select_stmt->tables()[1]->table_meta().name()) {
+        same_table_join = true;
+      }
+    }
+    project_oper = std::make_unique<ProjectLogicalOperator>(all_fields, all_expressions, same_table_join);
   } else {
-    project_oper = std::make_unique<ProjectLogicalOperator>(all_fields);
+    if (select_stmt->tables().size() == 2) {
+      if (select_stmt->tables()[0]->table_meta().name() == select_stmt->tables()[1]->table_meta().name()) {
+        same_table_join = true;
+      }
+    }
+    project_oper = std::make_unique<ProjectLogicalOperator>(all_fields, same_table_join);
   }
 
   if (predicate_oper) {
@@ -357,6 +368,9 @@ RC LogicalPlanGenerator::create_plan(
         new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
   predicate_oper->set_subselect_expr_name(subselect_expr_names);
+  if (predicate_oper != nullptr) {
+    predicate_oper->set_same_table(filter_stmt->get_same_table());
+  }
   logical_operator = std::move(predicate_oper);
   
   for (int i = 0;i < subselect_lopers.size();i++)
