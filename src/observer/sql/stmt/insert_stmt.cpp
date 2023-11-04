@@ -59,48 +59,51 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
       }
       for (int i = 0; i < field_num;i++){
         bool is_in = false;
-        if (inserts.view_string.empty()) {
+        // if (inserts.view_string.empty()) {
           // 如果没有在插入时指定字段
-          for (auto vfield : *view_table->table_meta().field_metas())
-          {
-            if (0 == strcmp(vfield.name(),(*table_meta.field_metas())[i + stat_idx].name()))
-            {
-              is_in = true;
-              break;
-            }
+        for (auto vfield : *view_table->table_meta().field_metas())
+        {
+          if (vfield.is_virtual()) {
+            return RC::INTERNAL;
           }
-          if (is_in)
+          if (0 == strcmp(vfield.name(),(*table_meta.field_metas())[i + stat_idx].name()))
           {
-            continue;
+            is_in = true;
+            break;
+          }
+        }
+        if (is_in)
+        {
+          continue;
+        }else{
+          if ((*table_meta.field_metas())[i + stat_idx].nullable())
+          {
+            value.insert(value.begin() + i,Value(AttrType::OBNULL));
+            values = value.data();
           }else{
-            if ((*table_meta.field_metas())[i + stat_idx].nullable())
-            {
-              value.insert(value.begin() + i,Value(AttrType::OBNULL));
-              values = value.data();
-            }else{
-              return RC::INTERNAL;
-            }
+            return RC::INTERNAL;
           }
-        } else {
-          // 如果有在插入时指定字短
-          for (int k = 0; k < inserts.view_string.size(); k++) {
-            if (0 == strcmp(inserts.view_string[k].c_str(),(*table_meta.field_metas())[i + stat_idx].name())) {
-              is_in = true;
-              break;
-            }
-          }
-          if (is_in)
-          {
-            continue;
-          }else{
-            if ((*table_meta.field_metas())[i + stat_idx].nullable())
-            {
-              value.insert(value.begin() + i,Value(AttrType::OBNULL));
-              values = value.data();
-            }else{
-              return RC::INTERNAL;
-            }
-          }
+          // }
+        // } else {
+        //   // 如果有在插入时指定字短
+        //   for (int k = 0; k < inserts.view_string.size(); k++) {
+        //     if (0 == strcmp(inserts.view_string[k].c_str(),(*table_meta.field_metas())[i + stat_idx].name())) {
+        //       is_in = true;
+        //       break;
+        //     }
+        //   }
+        //   if (is_in)
+        //   {
+        //     continue;
+        //   }else{
+        //     if ((*table_meta.field_metas())[i + stat_idx].nullable())
+        //     {
+        //       value.insert(value.begin() + i,Value(AttrType::OBNULL));
+        //       values = value.data();
+        //     }else{
+        //       return RC::INTERNAL;
+        //     }
+        //   }
         }
       }
     }

@@ -85,6 +85,9 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
           // 说明是表达式
           AttrInfoSqlNode info;
           std::string table_name;
+          if (exprnode.expression->type() != ExprType::FIELD) {
+            info.is_virtual = true;
+          }
           if (exprnode.attributes[0].relation_name != "")
           {
             if (!selectSqlNode.relations.empty())
@@ -111,6 +114,9 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
       }else{
           AttrInfoSqlNode info;
           std::string table_name;
+          if (exprnode.expression->type() != ExprType::FIELD) {
+            info.is_virtual = true;
+          }
           if (exprnode.attributes[0].relation_name != "")
           {
             // 多表的情况，从reltion中找对应的表，因为可能用的是 alias 所以需要找到对应的实际表名

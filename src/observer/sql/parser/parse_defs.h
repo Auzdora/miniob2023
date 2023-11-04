@@ -291,6 +291,7 @@ struct AttrInfoSqlNode {
   std::string name; ///< Attribute name
   size_t length;    ///< Length of attribute
   bool nullable;    ///< attribute nullbale          属性是否能为NULL
+  bool is_virtual=false;
 };
 
 /**
