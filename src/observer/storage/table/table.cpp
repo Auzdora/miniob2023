@@ -145,6 +145,12 @@ RC Table::drop(const char *table_path, const char *data_path, const std::vector<
   }
   LOG_INFO("Begin to drop table %s:%s", base_dir, name);
 
+  rc = data_buffer_pool_->close_file();
+  if (rc != RC::SUCCESS)
+  {
+    return rc;
+  }
+
   // Remove the table meta file
   if (remove(table_path) != 0) {
     LOG_ERROR("Failed to remove table file. filename=%s, errmsg=%d:%s", table_path, errno, strerror(errno));
@@ -166,12 +172,12 @@ RC Table::drop(const char *table_path, const char *data_path, const std::vector<
     }
   }
 
-  BufferPoolManager &bpm = BufferPoolManager::instance();
-  rc = bpm.close_file(data_path);
-  if (rc != RC::SUCCESS) {
-    LOG_ERROR("Failed to close disk buffer pool of data file. file name=%s", data_path);
-    return rc;
-  }
+  // BufferPoolManager &bpm = BufferPoolManager::instance();
+  // rc = bpm.close_file(data_path);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_ERROR("Failed to close disk buffer pool of data file. file name=%s", data_path);
+  //   return rc;
+  // }
 
   LOG_INFO("Successfully deleted table %s:%s", base_dir, name);
   return RC::SUCCESS;

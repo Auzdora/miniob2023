@@ -40,6 +40,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   std::vector<std::vector<Value>> records;
+  std::vector<Value> add_value;
 
   for (auto value:inserts.values){
 
@@ -47,8 +48,63 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const Value *values = value.data();
     const int value_num = static_cast<int>(value.size());
     const TableMeta &table_meta = table->table_meta();
+    int stat_idx = table_meta.sys_field_num() + table_meta.custom_fields_num();
     const int field_num = table_meta.field_num() - table_meta.sys_field_num() - table_meta.custom_fields_num();
-    if (field_num != value_num) {
+    if (inserts.select_view)
+    {
+      Table *view_table = db->find_table(inserts.view_name.c_str());
+      if (!view_table)
+      {
+        return RC::INTERNAL;
+      }
+      for (int i = 0; i < field_num;i++){
+        bool is_in = false;
+        if (inserts.view_string.empty()) {
+          // 如果没有在插入时指定字段
+          for (auto vfield : *view_table->table_meta().field_metas())
+          {
+            if (0 == strcmp(vfield.name(),(*table_meta.field_metas())[i + stat_idx].name()))
+            {
+              is_in = true;
+              break;
+            }
+          }
+          if (is_in)
+          {
+            continue;
+          }else{
+            if ((*table_meta.field_metas())[i + stat_idx].nullable())
+            {
+              value.insert(value.begin() + i,Value(AttrType::OBNULL));
+              values = value.data();
+            }else{
+              return RC::INTERNAL;
+            }
+          }
+        } else {
+          // 如果有在插入时指定字短
+          for (int k = 0; k < inserts.view_string.size(); k++) {
+            if (0 == strcmp(inserts.view_string[i].c_str(),(*table_meta.field_metas())[i + stat_idx].name())) {
+              is_in = true;
+              break;
+            }
+          }
+          if (is_in)
+          {
+            continue;
+          }else{
+            if ((*table_meta.field_metas())[i + stat_idx].nullable())
+            {
+              value.insert(value.begin() + i,Value(AttrType::OBNULL));
+              values = value.data();
+            }else{
+              return RC::INTERNAL;
+            }
+          }
+        }
+      }
+    }
+    if (field_num != value_num && !inserts.select_view) {
       LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
       return RC::SCHEMA_FIELD_MISSING;
     }

@@ -98,7 +98,7 @@ int aggr_start_offset = 0; // for group by and aggr
         SET
         ON
         LOAD
-        DATA
+        /* DATA */
         INFILE
         EXPLAIN
         EQ
@@ -160,6 +160,7 @@ int aggr_start_offset = 0; // for group by and aggr
   std::vector<InnerJoinSqlNode> *   inner_join_list;
   std::vector<std::vector<Value>> * value_lists;
   std::vector<std::string> *        index_list;
+  std::vector<std::string> *        ids_list;
   std::vector<UpdateFieldNode> *    update_field_list;
   char *                            string;
   char *                            alias;
@@ -198,6 +199,7 @@ int aggr_start_offset = 0; // for group by and aggr
 %type <attr_info>           attr_def
 %type <value_list>          value_list
 %type <value_lists>         value_lists
+%type <ids_list>            ids
 %type <condition_list>      where
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
@@ -396,6 +398,20 @@ drop_index_stmt:      /*drop index 语句的语法解析树*/
       free($5);
     }
     ;
+ids:
+    ID
+    {
+        $$ = new std::vector<std::string>;
+        $$->push_back($1);
+        free($1);
+    }
+    | ids COMMA ID 
+    {
+        $$ = $1;
+        $$->push_back($3);
+        free($3);
+    }
+    ;
 create_table_stmt:    /*create table 语句的语法解析树*/
     CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE
     {
@@ -425,6 +441,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     | CREATE VIEW ID AS select_stmt
     {
       $$ = $5;
+      std::reverse($$->selection.expressions.begin(),$$->selection.expressions.end());
       $$->flag = SCF_CREATE_VIEW;
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
@@ -437,6 +454,18 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       $$->flag = SCF_CREATE_TABLE_SELECT;
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
+      free($3);
+      create_table.use_select = true;
+    }
+    |
+     CREATE VIEW ID LBRACE ids RBRACE AS select_stmt
+    {
+      $$ = $8;
+      std::reverse($$->selection.expressions.begin(),$$->selection.expressions.end());
+      $$->flag = SCF_CREATE_VIEW;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      create_table.is_view = true;
       free($3);
       create_table.use_select = true;
     }
@@ -530,6 +559,14 @@ insert_stmt:        /*insert   语句的语法解析树*/
       $$->insertion.relation_name = $3;
       $$->insertion.values.swap(*$5);
       delete $5;
+      free($3);
+    }
+    | INSERT INTO ID LBRACE ids RBRACE VALUES value_lists {
+      $$ = new ParsedSqlNode(SCF_INSERT);
+      $$->insertion.relation_name = $3;
+      $$->insertion.values.swap(*$8);
+      $$->insertion.view_string.swap(*$5);
+      delete $8;
       free($3);
     }
     ;
@@ -1743,7 +1780,8 @@ comp_op:
     ;
 
 load_data_stmt:
-    LOAD DATA INFILE SSS INTO TABLE ID 
+{}
+    /* LOAD DATA INFILE SSS INTO TABLE ID 
     {
       char *tmp_file_name = common::substr($4, 1, strlen($4) - 2);
       
@@ -1753,7 +1791,7 @@ load_data_stmt:
       free($7);
       free(tmp_file_name);
     }
-    ;
+    ; */
 
 explain_stmt:
     EXPLAIN command_wrapper

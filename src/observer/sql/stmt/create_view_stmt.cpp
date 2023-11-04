@@ -13,144 +13,226 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/stmt/create_view_stmt.h"
-#include "sql/parser/parse_defs.h"
-#include "storage/field/field.h"
-#include "common/log/log.h"
-#include "common/lang/string.h"
+#include "storage/table/table.h"
 #include "storage/db/db.h"
-#include <vector>
-
-void wildcard_fields(Table *table, std::vector<Field> &field_metas)
-{
-  const TableMeta &table_meta = table->table_meta();
-  const int field_num = table_meta.field_num();
-  for (int i = table_meta.sys_field_num() + table_meta.custom_fields_num(); i < field_num; i++) {
-    field_metas.push_back(Field(table, table_meta.field(i)));
-  }
-}
-
+#include "sql/expr/expression.h"
 
 RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt, SelectSqlNode &selectSqlNode)
 {
-  // collect tables in `from` statement
-  std::vector<Table *> tables;
-  std::unordered_map<std::string, Table *> table_map;
-  for (size_t i = 0; i < selectSqlNode.relations.size(); i++) {
-    const char *table_name = selectSqlNode.relations[i].relation_name.c_str();
-    if (nullptr == table_name) {
-      LOG_WARN("invalid argument. relation name is null. index=%d", i);
-      return RC::INVALID_ARGUMENT;
-    }
-
-    Table *table = db->find_table(table_name);
-    if (nullptr == table) {
-      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-      return RC::SCHEMA_TABLE_NOT_EXIST;
-    }
-
-    tables.push_back(table);
-    table_map.insert(std::pair<std::string, Table *>(table_name, table));
-    if (!selectSqlNode.relations[i].alias.empty()) {
-      table_map.insert(std::pair<std::string, Table *>(selectSqlNode.relations[i].alias.c_str(), table));
+  std::unordered_map<std::string,std::string> alias_to_table;
+  for (int i = 0; i < selectSqlNode.relations.size(); i++)
+  {
+    std::string rel_name = selectSqlNode.relations[i].relation_name;
+    Table* table = db->find_table(rel_name.c_str());
+    if (table == nullptr)
+      return RC::INTERNAL;
+    if (selectSqlNode.relations[i].alias != "")
+    {
+      alias_to_table.insert(std::pair(selectSqlNode.relations[i].alias,rel_name));
     }
   }
 
-  for (const auto &[relation_name, alias] : selectSqlNode.rel_alias) {
-    auto it = table_map.find(relation_name);
-    if (it != table_map.end()) {
-      continue;
-    }
-    Table *table = db->find_table(relation_name.c_str());
-    if (nullptr == table) {
-      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), relation_name.c_str());
-      return RC::SCHEMA_TABLE_NOT_EXIST;
-    }
-    table_map.insert(std::pair<std::string, Table *>(relation_name, table));
-    if (!alias.empty()) {
-      table_map.insert(std::pair<std::string, Table *>(alias, table));
-    }
-  }
+  std::vector<AttrInfoSqlNode> infos;
 
-  // collect query fields in `select` statement
-  std::vector<Field> query_fields;
-  std::vector<std::string> star_field_names;
-  for (int i = static_cast<int>(selectSqlNode.attributes.size()) - 1; i >= 0; i--) {
-    const RelAttrSqlNode &relation_attr = selectSqlNode.attributes[i];
-
-    if (common::is_blank(relation_attr.relation_name.c_str()) &&
-        0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
-      for (Table *table : tables) {
-        wildcard_fields(table, query_fields);
-        for (const auto &field : query_fields) {
-          star_field_names.push_back(field.field_name());
-        }
-      }
-
-    } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
-      const char *table_name = relation_attr.relation_name.c_str();
-      const char *field_name = relation_attr.attribute_name.c_str();
-
-      if (0 == strcmp(table_name, "*")) {
-        if (0 != strcmp(field_name, "*")) {
-          LOG_WARN("invalid field name while table is *. attr=%s", field_name);
-          return RC::SCHEMA_FIELD_MISSING;
-        }
-        for (Table *table : tables) {
-          wildcard_fields(table, query_fields);
-        }
-      } else if (0 != strcmp(table_name, "*") && 0 == strcmp(field_name, "*")){
-        Table *table = table_map.at(table_name);
-        wildcard_fields(table, query_fields);
-      } else {
-        auto iter = table_map.find(table_name);
-        if (iter == table_map.end()) {
-          LOG_WARN("no such table in from list: %s", table_name);
-          return RC::SCHEMA_FIELD_MISSING;
-        }
-
-        Table *table = iter->second;
-        if (0 == strcmp(field_name, "*") && selectSqlNode.aggregations.size() > 0) {
-          query_fields.push_back(Field(table, new FieldMeta("*",AttrType::AGGRSTAR, 0, 1,true, true))); // TODO 逻辑要理一下
-        } else if (0 == strcmp(field_name, "*")) {
-          wildcard_fields(table, query_fields);
-        } else {
-          const FieldMeta *field_meta = table->table_meta().field(field_name);
-          if (nullptr == field_meta) {
-            LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
-            return RC::SCHEMA_FIELD_MISSING;
+  for (int i = 0; i < selectSqlNode.expressions.size();i++)
+  {
+    ExprSqlNode &exprnode = selectSqlNode.expressions[i];
+    if (exprnode.aggregations.size() == 0)
+    {
+      // 不是aggregation 表达式
+      if(exprnode.attributes.size() == 1)
+      {
+        if (exprnode.expression == nullptr)
+        {
+          if (exprnode.attributes[0].attribute_name == "*")
+          {
+            // star
+            for (auto rel : selectSqlNode.relations)
+            {
+              Table * table = db->find_table(rel.relation_name.c_str());
+              TableMeta table_meta = table->table_meta();
+              for (int i = 0;i < table_meta.field_num() - table_meta.sys_field_num() - table_meta.custom_fields_num(); i++)
+              {
+                AttrInfoSqlNode info;
+                FieldMeta field = *table_meta.field(i+table_meta.sys_field_num()+table_meta.custom_fields_num());
+                info.name = field.name();
+                info.length = field.len();
+                info.nullable = field.nullable();
+                info.type = field.type();
+                infos.push_back(info);
+              }
+            }
           }
-
-          query_fields.push_back(Field(table, field_meta));
         }
+        else if (!exprnode.expression)
+        {
+          // 说明是 字段
+          AttrInfoSqlNode info;
+          Table* table = db->find_table(exprnode.attributes[0].relation_name.c_str());
+          if (exprnode.attributes[0].attribute_alias.c_str())
+          {
+            // 有alias 就使用alias
+            info.name = exprnode.attributes[0].attribute_alias;
+          }else{
+            info.name = exprnode.attributes[0].attribute_name;
+          }
+          const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
+          info.type = field.type();
+          info.length = field.len();
+          info.nullable = field.nullable();
+          infos.push_back(info);
+        }else{
+          // 说明是表达式
+          AttrInfoSqlNode info;
+          std::string table_name;
+          if (exprnode.attributes[0].relation_name != "")
+          {
+            if (!selectSqlNode.relations.empty())
+            {
+              table_name = find_relation(selectSqlNode.relations,exprnode.attributes[0].relation_name);
+              if (table_name == "")
+              {
+                return RC::INTERNAL;
+              }
+            }else{
+              return RC::INTERNAL;
+            }
+          }
+          else
+            table_name =  selectSqlNode.relations[0].relation_name;
+          Table* table = db->find_table(table_name.c_str());
+          info.name = extractColumnNameOrAlias(exprnode.expression->name());
+          const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
+          info.type = field.type();
+          info.length = field.len();
+          info.nullable = field.nullable();
+          infos.push_back(info);
+        }
+      }else{
+          AttrInfoSqlNode info;
+          std::string table_name;
+          if (exprnode.attributes[0].relation_name != "")
+          {
+            // 多表的情况，从reltion中找对应的表，因为可能用的是 alias 所以需要找到对应的实际表名
+            if (!selectSqlNode.relations.empty())
+            {
+              table_name = find_relation(selectSqlNode.relations,exprnode.attributes[0].relation_name);
+              if (table_name == "")
+              {
+                return RC::INTERNAL;
+              }
+            }else{
+              return RC::INTERNAL;
+            }
+          }
+          else
+            table_name =  selectSqlNode.relations[0].relation_name;  // 单表的情况 直接从relation中获取
+          Table* table = db->find_table(table_name.c_str());
+          info.name = extractColumnNameOrAlias(exprnode.expression->name());
+          const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
+          info.type = field.type();
+          info.length = field.len();
+          info.nullable = field.nullable();
+          infos.push_back(info);
       }
-    } else {
-      if (tables.size() != 1) {
-        LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
-        return RC::SCHEMA_FIELD_MISSING;
+    }else{
+      // 表达式只含 aggr
+      if (exprnode.aggregations.size() == 1)
+      {
+        AttrInfoSqlNode info;
+        if (exprnode.aggregations[0].alias != "")
+        {
+          info.name = exprnode.aggregations[0].alias;
+        }else{
+          info.name = exprnode.expression->name();
+        }
+        if (exprnode.aggregations[0].aggregation_name == "count")
+        {
+          info.type = INTS;
+          info.length = sizeof(int);
+        } 
+        else if (exprnode.aggregations[0].aggregation_name == "avg")
+        {
+          info.type = FLOATS;
+          info.length = sizeof(int);
+        }else
+        {
+          if (exprnode.attributes[0].relation_name == "")
+          {
+            if (selectSqlNode.relations[0].relation_name.c_str() == "")
+              return RC::INTERNAL;
+            TableMeta tablemeta = db->find_table(selectSqlNode.relations[0].relation_name.c_str())->table_meta();
+            FieldMeta field = *tablemeta.field(exprnode.attributes[0].attribute_name.c_str());
+            info.type = field.type();
+            info.length = field.len();
+          }else
+          {
+            // 多表的情况 从relation中找
+            std::string table_name = find_relation(selectSqlNode.relations,exprnode.attributes[0].relation_name);
+            if (table_name == "")
+            {
+              return RC::INTERNAL;
+            }
+            TableMeta tablemeta = db->find_table(table_name.c_str())->table_meta();
+            FieldMeta field = *tablemeta.field(exprnode.attributes[0].attribute_name.c_str());
+            info.type = field.type();
+            info.length = field.len();
+          }
+        }
+        info.nullable = true;
+        infos.push_back(info);
       }
-
-      Table *table = tables[0];
-      const FieldMeta *field_meta = table->table_meta().field(relation_attr.attribute_name.c_str());
-      if (nullptr == field_meta) {
-        LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name.c_str());
-        return RC::SCHEMA_FIELD_MISSING;
+      else{
+        AttrInfoSqlNode info;
+        info.name = exprnode.expression->name();
+        info.length = sizeof(float);
+        info.nullable = true;
+        info.type = FLOATS;
       }
-
-      query_fields.push_back(Field(table, field_meta));
     }
   }
 
-  std::vector<AttrInfoSqlNode> attr_infos;
-  for (const auto &field : query_fields) {
-    AttrInfoSqlNode attr_info;
-    attr_info.length = field.meta()->len();
-    attr_info.name = field.field_name();
-    attr_info.nullable = field.meta()->nullable();
-    attr_info.type = field.attr_type();
-    attr_infos.push_back(attr_info);
-  }
-
-  stmt = new CreateViewStmt(create_table.relation_name, attr_infos, selectSqlNode);
+  
+  stmt = new CreateViewStmt(create_table.relation_name, infos,selectSqlNode);
   //sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
   return RC::SUCCESS;
 }
+
+std::string CreateViewStmt::get_rel_name(std::unordered_map<std::string,std::string> alias_to_rel,std::string alias){
+  auto it = alias_to_rel.find(alias);
+  if (it != alias_to_rel.end())
+  {
+    return it->second;
+  }else{
+    return std::string("");
+  }
+}
+
+std::string CreateViewStmt::find_relation(std::vector<RelSqlNode> relations,std::string relation_name)
+{
+  for (auto rel : relations)
+  {
+    if (rel.relation_name == relation_name || rel.alias == relation_name)
+    {
+      return rel.relation_name;
+    }
+  }
+  return std::string("");
+}
+
+std::string CreateViewStmt::extractColumnNameOrAlias(const std::string& input) {
+      // Check if there's an "as" keyword to define an alias
+      auto asPos = input.rfind(" as ");
+      if (asPos != std::string::npos) {
+          return input.substr(asPos + 4); // Return the alias
+      }
+
+      // If there's no alias, check for a table alias (e.g., "t.id")
+      // auto dotPos = input.rfind(".");
+      // if (dotPos != std::string::npos) {
+      //     return input.substr(dotPos + 1); // Return the column name
+      // }
+
+      // If there's no table or alias, return the input as-is
+      return input;
+  }

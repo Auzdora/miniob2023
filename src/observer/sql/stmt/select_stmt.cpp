@@ -37,6 +37,11 @@ SelectStmt::~SelectStmt()
       filter = nullptr;
     }
   }
+  if (select_view_sql_stmt != nullptr)
+  {
+    delete select_view_sql_stmt;
+    select_view_sql_stmt = nullptr;
+  }
 }
 
 static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
@@ -425,6 +430,17 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return rc;
   }
 
+  // create select view stmt
+  Stmt * select_view_stmt = nullptr;
+  if (select_sql.select_view)
+  {
+    if (create(db,*select_sql.select_view_sql_node,select_view_stmt) != RC::SUCCESS)
+    {
+      return RC::INTERNAL;
+    }
+
+  }
+
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
   // TODO add expression copy
@@ -441,6 +457,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->use_group_by_ = select_sql.use_group_by;
   select_stmt->group_by_exprs_.swap(group_by_exprs);
   select_stmt->having_filter_stmt_ = having_filter_stmt;
+  select_stmt->select_view_ = select_sql.select_view;
+  select_stmt->select_view_sql_stmt = std::move(static_cast<SelectStmt *>(select_view_stmt));
   stmt = select_stmt;
   return RC::SUCCESS;
 }

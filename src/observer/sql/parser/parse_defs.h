@@ -220,6 +220,9 @@ struct SelectSqlNode
   std::vector<ExprSqlNode>        groupbys;
   std::vector<ConditionSqlNode>   having_conditions;
   bool use_group_by;
+
+  bool select_view = false;
+  SelectSqlNode *                 select_view_sql_node;
   std::string                     select_string;
 };
 
@@ -241,7 +244,10 @@ struct CalcSqlNode {
 struct InsertSqlNode {
   std::string relation_name;               ///< Relation to insert into;
   std::vector<std::vector<Value>> values;  ///< 要插入的值
-};
+  bool select_view = false;
+  std::string view_name;
+  std::vector<std::string> view_string;
+}; 
 
 /**
  * @brief 描述一个delete语句
@@ -250,6 +256,8 @@ struct InsertSqlNode {
 struct DeleteSqlNode {
   std::string relation_name; ///< Relation to delete from
   std::vector<ConditionSqlNode> conditions;
+  bool select_view = false;
+  std::string view_name;
 };
 
 struct UpdateFieldNode {
@@ -267,6 +275,8 @@ struct UpdateSqlNode {
   std::string relation_name;  ///< Relation to update
   std::vector<UpdateFieldNode> fields;
   std::vector<ConditionSqlNode> conditions;
+  bool select_view = false;
+  std::string view_name;
 };
 
 /**

@@ -41,68 +41,193 @@ RC ViewParseStage::handle_request(SQLStageEvent *sql_event)
   {
   case SCF_SELECT:
     {
-      // bool has_view = false;
-      // for (auto rel : input_sql_node->selection.relations)
-      // {
-      //   Table *table = db->find_table(input_sql_node->selection.relations[0].relation_name.c_str());
-      //   if (table == nullptr)
-      //   {
-      //     return RC::SUCCESS;
-      //   }
-      //   if(table->check_view())
-      //   {
-      //     std::string view_name = table->name();
-      //     auto meta = db->get_view(rel.relation_name.c_str());
-      //     view_sql = meta.get_sql_string();
-      //     view_name_ = meta.get_view_name();
-      //     parse(view_sql.c_str(), &parsed_sql_result);
-      //     has_view = true;
-      //   }
-      // }
-      // if (has_view)
-      // {
-      //   RC rc = rewrite_sql_node(*input_sql_node,*parsed_sql_result.sql_nodes()[0].get());
-      //   sql_event->set_sql_node(std::move(parsed_sql_result.sql_nodes()[0]));
-      //   return rc;
-      // }
+      bool has_view = false;
+      if (input_sql_node->selection.relations.empty())
+      {
+        return RC::SUCCESS;
+      }
+      std::string rel_name = input_sql_node->selection.relations[0].relation_name;
+      std::string view_name;
+      Table *table = db->find_table(rel_name.c_str());
+      if (table == nullptr)
+      {
+        for (auto viewmeta : db->all_view())
+        {
+          if (viewmeta.second.get_view_name() == rel_name)
+          {
+            has_view = true;
+            view_name = rel_name;
+            break;
+          }
+        }
+        if (!has_view)
+          return RC::SUCCESS;
+        auto meta = db->get_view(rel_name.c_str());
+        view_sql = meta.get_sql_string();
+        view_name_ = meta.get_view_name();
+        parse(view_sql.c_str(), &parsed_sql_result);
+        sql_event->set_view_sql_node(parsed_sql_result.sql_nodes()[0].get()->selection);
+        has_view = true;
+      }else{
+        if (table->check_view())
+        {
+          view_name = table->name();
+          auto meta = db->get_view(rel_name.c_str());
+          view_sql = meta.get_sql_string();
+          view_name_ = meta.get_view_name();
+          parse(view_sql.c_str(), &parsed_sql_result);
+          sql_event->set_view_sql_node(parsed_sql_result.sql_nodes()[0].get()->selection);
+          has_view = true;
+        }
+      }
+      if (has_view)
+      {
+        input_sql_node->selection.select_view = true;
+        input_sql_node->selection.select_view_sql_node = &sql_event->get_view_sql_node();
+        // RC rc = rewrite_sql_node(*input_sql_node,*parsed_sql_result.sql_nodes()[0].get());
+        //sql_event->set_sql_node(std::move(parsed_sql_result.sql_nodes()[0]));
+        return RC::SUCCESS;
+      }
       return RC::SUCCESS;
     }
     break;
   case SCF_CREATE_VIEW:
     {
-      CreateViewExecutor executor;
-      executor.execute(sql_event);
-      input_sql_node->flag = SCF_CREATE_TABLE_SELECT;
-      input_sql_node->create_table.use_select = true;
       return RC::SUCCESS;
     }
     break;
   case SCF_UPDATE:
-    
-    break;
-  case SCF_DELETE:
-    
-    break;
-  case SCF_INSERT:
     {
       bool has_view = false;
-      std::string rel_name = input_sql_node->insertion.relation_name;
+      std::string rel_name = input_sql_node->update.relation_name;
+      std::string view_name;
       Table *table = db->find_table(rel_name.c_str());
       if (table == nullptr)
       {
-        return RC::SUCCESS;
-      }
-      if(table->check_view())
-      {
-        std::string view_name = table->name();
+        for (auto viewmeta : db->all_view())
+        {
+          if (viewmeta.second.get_view_name() == rel_name)
+          {
+            has_view = true;
+            view_name = rel_name;
+            break;
+          }
+        }
+        if (!has_view)
+          return RC::SUCCESS;
         auto meta = db->get_view(rel_name.c_str());
         view_sql = meta.get_sql_string();
         view_name_ = meta.get_view_name();
         parse(view_sql.c_str(), &parsed_sql_result);
         has_view = true;
+      }else{
+        if(table->check_view())
+        {
+          view_name = table->name();
+          auto meta = db->get_view(rel_name.c_str());
+          view_sql = meta.get_sql_string();
+          view_name_ = meta.get_view_name();
+          parse(view_sql.c_str(), &parsed_sql_result);
+          has_view = true;
+        }
+      }
+      if (has_view)
+      { 
+        input_sql_node->update.select_view = true;
+        input_sql_node->update.view_name = view_name;
+        RC rc = rewrite_sql_node(*input_sql_node,*parsed_sql_result.sql_nodes()[0].get());
+        //sql_event->set_sql_node(std::move(parsed_sql_result.sql_nodes()[0]));
+        return rc;
+      }
+    }
+    break;
+  case SCF_DELETE:
+    {
+      bool has_view = false;
+      std::string rel_name = input_sql_node->deletion.relation_name;
+      std::string view_name;
+      Table *table = db->find_table(rel_name.c_str());
+      if (table == nullptr)
+      {
+        for (auto viewmeta : db->all_view())
+        {
+          if (viewmeta.second.get_view_name() == rel_name)
+          {
+            has_view = true;
+            view_name = rel_name;
+            break;
+          }
+        }
+        if (!has_view)
+          return RC::SUCCESS;
+        auto meta = db->get_view(rel_name.c_str());
+        view_sql = meta.get_sql_string();
+        view_name_ = meta.get_view_name();
+        parse(view_sql.c_str(), &parsed_sql_result);
+        has_view = true;
+      }else
+      {
+        if(table->check_view())
+        {
+          view_name = table->name();
+          auto meta = db->get_view(rel_name.c_str());
+          view_sql = meta.get_sql_string();
+          view_name_ = meta.get_view_name();
+          parse(view_sql.c_str(), &parsed_sql_result);
+          has_view = true;
+        }
+      }
+      
+      if (has_view)
+      {
+        input_sql_node->deletion.view_name = view_name;
+        input_sql_node->deletion.select_view = true;
+        RC rc = rewrite_sql_node(*input_sql_node,*parsed_sql_result.sql_nodes()[0].get());
+        //sql_event->set_sql_node(std::move(parsed_sql_result.sql_nodes()[0]));
+        return rc;
+      }
+    }
+    break;
+  case SCF_INSERT:
+    {
+      bool has_view = false;
+      std::string rel_name = input_sql_node->insertion.relation_name;
+      std::string view_name;
+      Table *table = db->find_table(rel_name.c_str());
+      if (table == nullptr)
+      {
+        for (auto viewmeta : db->all_view())
+        {
+          if (viewmeta.second.get_view_name() == rel_name)
+          {
+            has_view = true;
+            view_name = rel_name;
+            break;
+          }
+        }
+        if (!has_view)
+          return RC::SUCCESS;
+        auto meta = db->get_view(rel_name.c_str());
+        view_sql = meta.get_sql_string();
+        view_name_ = meta.get_view_name();
+        parse(view_sql.c_str(), &parsed_sql_result);
+        has_view = true;
+      }else{
+        if (table->check_view())
+        {
+          view_name = table->name();
+          auto meta = db->get_view(rel_name.c_str());
+          view_sql = meta.get_sql_string();
+          view_name_ = meta.get_view_name();
+          parse(view_sql.c_str(), &parsed_sql_result);
+          has_view = true;
+
+        }
       }
       if (has_view)
       {
+        input_sql_node->insertion.view_name = view_name;
+        input_sql_node->insertion.select_view = true;
         RC rc = rewrite_sql_node(*input_sql_node,*parsed_sql_result.sql_nodes()[0].get());
         //sql_event->set_sql_node(std::move(parsed_sql_result.sql_nodes()[0]));
         return rc;
@@ -150,48 +275,6 @@ RC ViewParseStage::rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode
   {
   case SCF_SELECT:
     {
-      auto &input_selection = input_sql_node.selection;
-      auto &view_selection = view_sql_node.selection;
-      view_selection.aggregations.insert(view_selection.aggregations.end(),input_selection.aggregations.begin(),input_selection.aggregations.end());
-      for (auto &rel : input_selection.relations)
-      {
-        if (rel.relation_name == view_name_)
-        {
-          continue;
-        }
-        view_selection.relations.push_back(rel);
-      }
-
-      for (auto &attr : input_selection.attributes)
-      {
-        for (auto &vattr : view_selection.attributes)
-        {
-          if (attr.attribute_name == "*")
-          {
-            attr.relation_name = "";
-          }
-          else if (attr.attribute_name == vattr.attribute_alias || attr.attribute_name == vattr.attribute_name)
-          {
-            attr.attribute_name = vattr.attribute_name;
-            attr.relation_name = vattr.relation_name;
-            attr.attribute_alias = vattr.attribute_alias;
-          }
-        }
-      }
-      view_selection.attributes.swap(input_selection.attributes);
-
-      view_selection.conditions.insert(view_selection.conditions.end(),input_selection.conditions.begin(),input_selection.conditions.end());
-      
-      for (int i = 0; i < view_selection.expressions.size(); i++)
-      {
-        switch (view_selection.expressions[i].expression->type())
-        {
-        default:
-          break;
-        }
-      }
-      view_selection.expressions.swap(input_selection.expressions);
-
       return RC::SUCCESS;
     } 
     break;
@@ -207,7 +290,12 @@ RC ViewParseStage::rewrite_sql_node(ParsedSqlNode &input_sql_node, ParsedSqlNode
     break;
    case SCF_DELETE:
     {
-      
+      input_sql_node.deletion.relation_name = view_sql_node.selection.relations[0].relation_name;
+    }
+    break;
+   case SCF_UPDATE:
+    {
+      input_sql_node.update.relation_name = view_sql_node.selection.relations[0].relation_name;
     }
     break;
   default:

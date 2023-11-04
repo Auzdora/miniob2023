@@ -94,42 +94,41 @@ extern int yydebug;
     SET = 295,                     /* SET  */
     ON = 296,                      /* ON  */
     LOAD = 297,                    /* LOAD  */
-    DATA = 298,                    /* DATA  */
-    INFILE = 299,                  /* INFILE  */
-    EXPLAIN = 300,                 /* EXPLAIN  */
-    EQ = 301,                      /* EQ  */
-    LT = 302,                      /* LT  */
-    GT = 303,                      /* GT  */
-    LE = 304,                      /* LE  */
-    GE = 305,                      /* GE  */
-    NE = 306,                      /* NE  */
-    LIKE = 307,                    /* LIKE  */
-    IS = 308,                      /* IS  */
-    NOT = 309,                     /* NOT  */
-    UNIQUE = 310,                  /* UNIQUE  */
-    ORDER = 311,                   /* ORDER  */
-    GROUP = 312,                   /* GROUP  */
-    BY = 313,                      /* BY  */
-    HAVING = 314,                  /* HAVING  */
-    ASC = 315,                     /* ASC  */
-    MINUS = 316,                   /* MINUS  */
-    LENGTH = 317,                  /* LENGTH  */
-    ROUND = 318,                   /* ROUND  */
-    DATE_FORMAT = 319,             /* DATE_FORMAT  */
-    AS = 320,                      /* AS  */
-    IN = 321,                      /* IN  */
-    EXISTS = 322,                  /* EXISTS  */
-    COUNT = 323,                   /* COUNT  */
-    MIN = 324,                     /* MIN  */
-    MAX = 325,                     /* MAX  */
-    SUM = 326,                     /* SUM  */
-    AVG = 327,                     /* AVG  */
-    NUMBER = 328,                  /* NUMBER  */
-    DATE = 329,                    /* DATE  */
-    FLOAT = 330,                   /* FLOAT  */
-    ID = 331,                      /* ID  */
-    SSS = 332,                     /* SSS  */
-    UMINUS = 333                   /* UMINUS  */
+    INFILE = 298,                  /* INFILE  */
+    EXPLAIN = 299,                 /* EXPLAIN  */
+    EQ = 300,                      /* EQ  */
+    LT = 301,                      /* LT  */
+    GT = 302,                      /* GT  */
+    LE = 303,                      /* LE  */
+    GE = 304,                      /* GE  */
+    NE = 305,                      /* NE  */
+    LIKE = 306,                    /* LIKE  */
+    IS = 307,                      /* IS  */
+    NOT = 308,                     /* NOT  */
+    UNIQUE = 309,                  /* UNIQUE  */
+    ORDER = 310,                   /* ORDER  */
+    GROUP = 311,                   /* GROUP  */
+    BY = 312,                      /* BY  */
+    HAVING = 313,                  /* HAVING  */
+    ASC = 314,                     /* ASC  */
+    MINUS = 315,                   /* MINUS  */
+    LENGTH = 316,                  /* LENGTH  */
+    ROUND = 317,                   /* ROUND  */
+    DATE_FORMAT = 318,             /* DATE_FORMAT  */
+    AS = 319,                      /* AS  */
+    IN = 320,                      /* IN  */
+    EXISTS = 321,                  /* EXISTS  */
+    COUNT = 322,                   /* COUNT  */
+    MIN = 323,                     /* MIN  */
+    MAX = 324,                     /* MAX  */
+    SUM = 325,                     /* SUM  */
+    AVG = 326,                     /* AVG  */
+    NUMBER = 327,                  /* NUMBER  */
+    DATE = 328,                    /* DATE  */
+    FLOAT = 329,                   /* FLOAT  */
+    ID = 330,                      /* ID  */
+    SSS = 331,                     /* SSS  */
+    UMINUS = 332                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -169,6 +168,7 @@ union YYSTYPE
   std::vector<InnerJoinSqlNode> *   inner_join_list;
   std::vector<std::vector<Value>> * value_lists;
   std::vector<std::string> *        index_list;
+  std::vector<std::string> *        ids_list;
   std::vector<UpdateFieldNode> *    update_field_list;
   char *                            string;
   char *                            alias;
