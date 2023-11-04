@@ -432,6 +432,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     | CREATE VIEW ID AS select_stmt
     {
       $$ = $5;
+      std::reverse($$->selection.expressions.begin(),$$->selection.expressions.end());
       $$->flag = SCF_CREATE_VIEW;
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;

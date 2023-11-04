@@ -41,6 +41,8 @@ public:
   const std::vector<AttrInfoSqlNode> &attr_infos() const { return attr_infos_; }
   SelectSqlNode &get_select_sql_node() { return select_sql_node_; }
 
+  static std::string get_rel_name(std::unordered_map<std::string,std::string> alias_to_rel,std::string alia);
+  static std::string find_relation(std::vector<RelSqlNode> relations,std::string relation_name);
   static RC create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt, SelectSqlNode &selectSqlNode);
 
 private:

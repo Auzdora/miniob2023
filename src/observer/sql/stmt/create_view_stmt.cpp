@@ -19,12 +19,17 @@ See the Mulan PSL v2 for more details. */
 
 RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt, SelectSqlNode &selectSqlNode)
 {
+  std::unordered_map<std::string,std::string> alias_to_table;
   for (int i = 0; i < selectSqlNode.relations.size(); i++)
   {
     std::string rel_name = selectSqlNode.relations[i].relation_name;
     Table* table = db->find_table(rel_name.c_str());
     if (table == nullptr)
       return RC::INTERNAL;
+    if (selectSqlNode.relations[i].alias != "")
+    {
+      alias_to_table.insert(std::pair(selectSqlNode.relations[i].alias,rel_name));
+    }
   }
 
   std::vector<AttrInfoSqlNode> infos;
@@ -81,7 +86,18 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
           AttrInfoSqlNode info;
           std::string table_name;
           if (exprnode.attributes[0].relation_name != "")
-            table_name = exprnode.attributes[0].relation_name;
+          {
+            if (!selectSqlNode.relations.empty())
+            {
+              table_name = find_relation(selectSqlNode.relations,exprnode.attributes[0].relation_name);
+              if (table_name == "")
+              {
+                return RC::INTERNAL;
+              }
+            }else{
+              return RC::INTERNAL;
+            }
+          }
           else
             table_name =  selectSqlNode.relations[0].relation_name;
           Table* table = db->find_table(table_name.c_str());
@@ -96,9 +112,21 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
           AttrInfoSqlNode info;
           std::string table_name;
           if (exprnode.attributes[0].relation_name != "")
-            table_name = exprnode.attributes[0].relation_name;
+          {
+            // 多表的情况，从reltion中找对应的表，因为可能用的是 alias 所以需要找到对应的实际表名
+            if (!selectSqlNode.relations.empty())
+            {
+              table_name = find_relation(selectSqlNode.relations,exprnode.attributes[0].relation_name);
+              if (table_name == "")
+              {
+                return RC::INTERNAL;
+              }
+            }else{
+              return RC::INTERNAL;
+            }
+          }
           else
-            table_name =  selectSqlNode.relations[0].relation_name;
+            table_name =  selectSqlNode.relations[0].relation_name;  // 单表的情况 直接从relation中获取
           Table* table = db->find_table(table_name.c_str());
           info.name = exprnode.expression->name();
           const FieldMeta field =  *table->table_meta().field(exprnode.attributes[0].attribute_name.c_str());
@@ -108,6 +136,7 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
           infos.push_back(info);
       }
     }else{
+      // 表达式只含 aggr
       if (exprnode.aggregations.size() == 1)
       {
         AttrInfoSqlNode info;
@@ -138,7 +167,13 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
             info.length = field.len();
           }else
           {
-            TableMeta tablemeta = db->find_table(exprnode.attributes[0].relation_name.c_str())->table_meta();
+            // 多表的情况 从relation中找
+            std::string table_name = find_relation(selectSqlNode.relations,exprnode.attributes[0].relation_name);
+            if (table_name == "")
+            {
+              return RC::INTERNAL;
+            }
+            TableMeta tablemeta = db->find_table(table_name.c_str())->table_meta();
             FieldMeta field = *tablemeta.field(exprnode.attributes[0].attribute_name.c_str());
             info.type = field.type();
             info.length = field.len();
@@ -161,4 +196,26 @@ RC CreateViewStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *
   stmt = new CreateViewStmt(create_table.relation_name, infos,selectSqlNode);
   //sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
   return RC::SUCCESS;
+}
+
+std::string CreateViewStmt::get_rel_name(std::unordered_map<std::string,std::string> alias_to_rel,std::string alias){
+  auto it = alias_to_rel.find(alias);
+  if (it != alias_to_rel.end())
+  {
+    return it->second;
+  }else{
+    return std::string("");
+  }
+}
+
+std::string CreateViewStmt::find_relation(std::vector<RelSqlNode> relations,std::string relation_name)
+{
+  for (auto rel : relations)
+  {
+    if (rel.relation_name == relation_name || rel.alias == relation_name)
+    {
+      return rel.relation_name;
+    }
+  }
+  return std::string("");
 }
